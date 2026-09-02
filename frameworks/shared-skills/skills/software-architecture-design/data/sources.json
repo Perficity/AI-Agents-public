@@ -2,9 +2,9 @@
   "metadata": {
     "skill": "software-architecture-design",
     "description": "Official-first resources for runtime architecture, platform design, distributed systems, and estate modernization",
-    "last_updated": "2026-07-11",
-    "updated": "2026-07-11",
-    "total_sources": 36,
+    "last_updated": "2026-08-24",
+    "updated": "2026-08-24",
+    "total_sources": 38,
     "title": "Software Architecture Design - Sources"
   },
   "architecture_patterns": [
@@ -36,6 +36,18 @@
       "name": "The Twelve-Factor App",
       "url": "https://12factor.net/",
       "description": "Durable operational design principles for cloud-native applications",
+      "add_as_web_search": false
+    },
+    {
+      "name": "Building Evolutionary Architectures, 2nd Edition",
+      "url": "https://www.oreilly.com/library/view/building-evolutionary-architectures/9781492097532/",
+      "description": "Ford, Parsons, Kua, Sadalage (O'Reilly, 2022). Ch.2 fitness-function taxonomy (atomic/holistic, triggered/continual/temporal, static/dynamic, automated/manual, intentional/emergent, coverage); Ch.4 automated governance with ArchUnit/NetArchTest/linters, herding thresholds, coupling and cyclomatic-complexity metrics; Ch.5 connascence. Source for references/fitness-functions-governance.md and the connascence section of references/modern-patterns.md.",
+      "add_as_web_search": false
+    },
+    {
+      "name": "Team Topologies, 2nd Edition",
+      "url": "https://teamtopologies.com/book",
+      "description": "Skelton and Pais (IT Revolution, 2025). Ch.6 software fracture planes (business domain, regulatory compliance, change cadence, team location, risk, performance isolation, technology, user personas), the autonomy/cognitive-load litmus test, and the distributed-monolith warning. Source for the fracture-plane insert in SKILL.md. Four team types and three interaction modes are deliberately NOT imported - graded contested elsewhere in this library.",
       "add_as_web_search": false
     }
   ],

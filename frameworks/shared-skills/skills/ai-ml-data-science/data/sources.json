@@ -1,12 +1,12 @@
 {
   "metadata": {
     "skill": "ai-ml-data-science",
-    "updated": "2026-07-11",
-    "total_sources": 33,
-    "description": "Curated sources for practical data science workflows: framing, EDA, validation, tabular modeling, evaluation, uncertainty, reproducibility, DS-to-MLOps handoff, and LLM data pipelines.",
-    "version": "4.3",
+    "updated": "2026-08-24",
+    "total_sources": 55,
+    "description": "Curated sources for practical data science workflows: framing, EDA, validation, responsible-AI mechanics, multimodal and speech modelling, evaluation, reproducibility, and production handoff.",
+    "version": "4.6",
     "title": "AI Ml Data Science - Sources",
-    "last_updated": "2026-07-11"
+    "last_updated": "2026-08-24"
   },
   "categories": {
     "foundational_papers_and_books": [
@@ -51,6 +51,42 @@
         "url": "https://papers.nips.cc/paper_files/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html",
         "type": "research",
         "relevance": "Classic reference on production ML failure modes and maintenance costs.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Hands-On Large Language Models (Alammar & Grootendorst, O'Reilly 2024)",
+        "url": "https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/",
+        "type": "book",
+        "relevance": "Chapter 5 is the primary-adjacent source for the modular text-clustering and topic-modeling pipeline (embed -> UMAP -> HDBSCAN -> c-TF-IDF -> representation models); Grootendorst authored BERTopic.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      },
+      {
+        "name": "BERTopic: Neural topic modeling with a class-based TF-IDF procedure",
+        "url": "https://arxiv.org/abs/2203.05794",
+        "type": "research",
+        "relevance": "Defines c-TF-IDF class-based term weighting and the modular clustering-plus-representation topic pipeline.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction",
+        "url": "https://arxiv.org/abs/1802.03426",
+        "type": "research",
+        "relevance": "Dimensionality-reduction stage of the text-clustering pipeline; nonlinear structure handling versus PCA.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "hdbscan: Hierarchical density based clustering (JOSS 2017)",
+        "url": "https://joss.theoj.org/papers/10.21105/joss.00205",
+        "type": "research",
+        "relevance": "Density clustering stage: cluster count not specified in advance, explicit outlier handling.",
         "update_frequency": "static",
         "access": "free",
         "add_as_web_search": false
@@ -286,6 +322,170 @@
         "access": "free_tier",
         "add_as_web_search": true,
         "updated": "2026-05-17"
+      }
+    ],
+    "responsible_ai_and_multimodal_primary_sources": [
+      {
+        "name": "Fairness and Abstraction in Sociotechnical Systems",
+        "url": "https://doi.org/10.1145/3287560.3287598",
+        "type": "research",
+        "relevance": "Primary source for connecting fairness definitions to sociotechnical system boundaries and affected populations.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "The Algorithmic Foundations of Differential Privacy",
+        "url": "https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf",
+        "type": "book",
+        "relevance": "Foundational treatment of differential privacy, composition, and privacy-utility reasoning.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Why Should I Trust You? Explaining the Predictions of Any Classifier",
+        "url": "https://arxiv.org/abs/1602.04938",
+        "type": "research",
+        "relevance": "Primary LIME paper for local post-hoc explanation and its assumptions.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "A Unified Approach to Interpreting Model Predictions",
+        "url": "https://arxiv.org/abs/1705.07874",
+        "type": "research",
+        "relevance": "Primary SHAP paper for additive feature-attribution explanations.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Deep Leakage from Gradients",
+        "url": "https://arxiv.org/abs/1906.08935",
+        "type": "research",
+        "relevance": "Demonstrates privacy leakage from shared gradients, important for federated-learning threat models.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Extracting Training Data from Large Language Models",
+        "url": "https://arxiv.org/abs/2012.07805",
+        "type": "research",
+        "relevance": "Primary evidence for memorization and training-data extraction risk.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Learning Transferable Visual Models From Natural Language Supervision",
+        "url": "https://arxiv.org/abs/2103.00020",
+        "type": "research",
+        "relevance": "Primary CLIP paper for dual-encoder image-text contrastive pretraining and zero-shot transfer.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Sigmoid Loss for Language Image Pre-Training",
+        "url": "https://arxiv.org/abs/2303.15343",
+        "type": "research",
+        "relevance": "Primary SigLIP paper for pairwise sigmoid image-text alignment without global softmax normalization.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "LayoutLM: Pre-training of Text and Layout for Document Image Understanding",
+        "url": "https://arxiv.org/abs/1912.13318",
+        "type": "research",
+        "relevance": "Primary document-understanding paper combining text and two-dimensional layout.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "High-Resolution Image Synthesis with Latent Diffusion Models",
+        "url": "https://arxiv.org/abs/2112.10752",
+        "type": "research",
+        "relevance": "Primary latent-diffusion source for compressed-space generation and cross-attention conditioning.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Classifier-Free Diffusion Guidance",
+        "url": "https://arxiv.org/abs/2207.12598",
+        "type": "research",
+        "relevance": "Primary source for conditional-unconditional guidance and the fidelity-diversity trade-off.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "On Distillation of Guided Diffusion Models",
+        "url": "https://arxiv.org/abs/2210.03142",
+        "type": "research",
+        "relevance": "Primary source for progressive distillation of guided diffusion sampling.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Robust Speech Recognition via Large-Scale Weak Supervision",
+        "url": "https://arxiv.org/abs/2212.04356",
+        "type": "research",
+        "relevance": "Primary Whisper paper for multilingual encoder-decoder ASR, translation, timestamps, and weak supervision.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Connectionist Temporal Classification",
+        "url": "https://www.cs.toronto.edu/~graves/icml_2006.pdf",
+        "type": "research",
+        "relevance": "Foundational CTC objective for monotonic sequence alignment with a blank symbol.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Sequence Transduction with Recurrent Neural Networks",
+        "url": "https://arxiv.org/abs/1211.3711",
+        "type": "research",
+        "relevance": "Foundational transducer objective combining acoustic encoding with output-history prediction for streaming recognition.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions",
+        "url": "https://arxiv.org/abs/1712.05884",
+        "type": "research",
+        "relevance": "Primary Tacotron 2 source for text-to-mel acoustic modelling followed by a neural vocoder.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "WaveNet: A Generative Model for Raw Audio",
+        "url": "https://arxiv.org/abs/1609.03499",
+        "type": "research",
+        "relevance": "Foundational autoregressive neural waveform model and vocoder reference.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Grad-TTS: A Diffusion Probabilistic Model for Text-to-Speech",
+        "url": "https://arxiv.org/abs/2105.06337",
+        "type": "research",
+        "relevance": "Primary diffusion acoustic-model source for TTS quality and sampling-speed trade-offs.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
       }
     ],
     "governance_and_security": [

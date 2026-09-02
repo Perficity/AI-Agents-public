@@ -35,6 +35,17 @@ Start with structure-aware chunking when structure exists. Use fixed-size
 with overlap only as a baseline for unstructured text. Move to semantic
 or late chunking when evals show a real gap.
 
+**Late chunking vs contextual retrieval** — both solve the same failure
+(a chunk loses the meaning its neighbours supplied). Late chunking runs the
+whole document through a long-context embedder and pools per-chunk vectors
+*after* the transformer, so chunks carry surrounding context for free at
+embedding time (Günther et al., arXiv 2409.04701); it needs an embedder with a
+long context window and only helps the dense leg. Contextual retrieval
+prepends an LLM-written context summary to each chunk's text, so it helps
+BM25 and dense alike but costs one generation per chunk at ingest. Pick late
+chunking when the corpus is dense-only and ingest budget is tight; pick
+contextual retrieval when hybrid search is in play or the embedder is fixed.
+
 ## Validation loop (only thing not in `chunking-patterns.md`)
 
 1. Freeze embedder, retriever, reranker.

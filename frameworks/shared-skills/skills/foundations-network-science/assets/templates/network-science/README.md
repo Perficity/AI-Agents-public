@@ -1,6 +1,6 @@
 # Network-Science Primitives — Composition Guide
 
-11 domain-agnostic network-science primitives. Each file is a standalone playbook (definition, when to use, inputs, outputs, failure modes, worked example, sources). Cross-cutting guidance — primitives overview, anti-patterns, decision checklist — lives in [`../../../references/primitives-overview.md`](../../../references/primitives-overview.md).
+12 domain-agnostic network-science primitives. Each file is a standalone playbook (definition, when to use, inputs, outputs, failure modes, worked example, sources). Cross-cutting guidance — primitives overview, anti-patterns, decision checklist — lives in [`../../../references/primitives-overview.md`](../../../references/primitives-overview.md).
 
 ---
 
@@ -19,6 +19,7 @@
 | 9 | [09-graph-clustering.md](09-graph-clustering.md) | Treating graph partitioning as unstructured k-means |
 | 10 | [10-graph-embeddings.md](10-graph-embeddings.md) | One-hot node encodings discard all structural information |
 | 11 | [11-temporal-networks.md](11-temporal-networks.md) | Aggregating time-stamped edges discards causal ordering |
+| 12 | [12-graph-schema-design.md](12-graph-schema-design.md) | Graph structure chosen implicitly at ingest, then frozen as technical debt |
 
 ---
 
@@ -43,7 +44,12 @@
 ### Recommendation / Knowledge Graph
 
 - **Objective**: infer missing edges and represent nodes for downstream ML
-- **Stack**: #8 (Adamic-Adar or Katz for link prediction) + #10 (node2vec or GNN embeddings) + #3 (community detection for candidate filtering)
+- **Stack**: #12 (schema design — decide node/edge/property split before ingest) + #8 (Adamic-Adar or Katz for link prediction) + #10 (node2vec or GNN embeddings) + #3 (community detection for candidate filtering)
+
+### Non-Graph Data to Graph Pipeline
+
+- **Objective**: decide whether tabular or document data should be modelled as a graph at all, then structure it so the choice is testable
+- **Stack**: #10 ("Is this a GNN problem?" three-criteria screen and the GNN-vs-boosted-trees direction) + #12 (four-step schema loop, instance model, constraint tests) + #3 or #8 as the downstream task requires
 
 ### Network Robustness Audit
 

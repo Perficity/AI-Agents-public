@@ -62,6 +62,29 @@ When two independent Replicated State Machines (RSMs) must exchange messages acr
 
 **Reference:** Frank et al. (OSDI 2025). arXiv:2312.11029.
 
+### Failure Detection (what the broadcast layer disseminates)
+
+Gossip's dominant production payload is failure-detector state, so the detector taxonomy belongs here. Petrov frames the whole problem as one tradeoff: "there's always a trade-off between wrongly suspecting alive processes as dead (producing false-positives), and delaying marking an unresponsive process as dead" — and, citing Chandra & Toueg 1996, "It is provably impossible to build a failure detector that is both accurate and efficient."
+
+Two quality axes: **completeness** ("every nonfaulty member should eventually notice the process failure") and **accuracy** (whether the failure "was precisely detected" — an algorithm "is not accurate if it falsely accuses a live process of being failed"). Efficiency (how fast) trades against accuracy.
+
+| Detector | Mechanism | Buys you | Costs you |
+|----------|-----------|----------|-----------|
+| **Ping / heartbeat + timeout** (e.g. Akka deadline failure detector) | Ping expects a reply in a fixed window; heartbeat has the process announce itself. Miss the deadline → suspected | Simplicity, strong completeness | "its precision relies on the careful selection of ping frequency and timeout, and it does not capture process visibility from the perspective of other processes" |
+| **Timeout-free heartbeat counters** (Aguilera et al. 1997) | Heartbeats carry the path travelled; each receiver increments counters for every process on the path. No timeouts → holds under asynchronous assumptions | Can "(correctly) mark an unreachable process as alive even when the direct link between the two processes is faulty" | Requires fair links and full membership knowledge; "interpreting heartbeat counters may be quite tricky: we need to pick a threshold" |
+| **SWIM / outsourced heartbeats** (Gupta et al. 2001) | P1 pings P2; on no reply, P1 asks *random* members P3, P4 to probe P2 and relay the ack | Direct *and* indirect reachability; only needs a subset of peers, not full membership; parallel probes give "more information about suspected processes quickly" | Extra round-trip on the suspicion path; decision now depends on the helpers' own health |
+| **Phi-accrual** (Hayashibara et al. 2004) | Sliding window of recent heartbeat arrival times (assumed normally distributed); estimates the next arrival and emits a continuous suspicion level φ instead of up/down | "dynamically adapts to changing network conditions by adjusting the scale on which the node can be marked as a suspect"; the threshold becomes an application knob, not a hardcoded timeout | Needs a warm sample window; a normality assumption that bimodal/GC-pause latency violates |
+| **Gossip-style detection** (van Renesse et al. 1998) | Members gossip a table of `{member: heartbeat_counter, last_updated}`; a counter that stops advancing marks the member failed | Cluster view is "an aggregate from multiple nodes"; heartbeats route around a broken link; worst-case bandwidth "can grow at most linearly with a number of processes" | More messages overall; still needs a carefully chosen timeout "to minimize the probability of false-positives" |
+| **FUSE** (Dunagan et al. 2004) | Inverts the problem: processes are arranged in groups, and a member that detects a failure *stops answering pings itself*, converting a single failure into a group failure that propagates via absence of communication | "every member is guaranteed to learn about group failure"; works "even in cases of network partitions" | "a link failure separating a single process from other ones can be converted to the group failure as well" — deliberate, but must match the application's failure semantics |
+
+**Architecture split (phi-accrual, generalizable):** *monitoring* (collect liveness via pings/heartbeats/request sampling) → *interpretation* (decide whether to suspect) → *action* (callback on suspicion). Keeping these three separable is what lets you swap a deadline detector for phi-accrual without touching membership logic.
+
+**Selection rule.** Fixed timeout when the network is predictable and the cost of a false positive is low. SWIM when you cannot afford full-membership knowledge or single-observer verdicts. Phi-accrual when latency varies enough that any one timeout is either too twitchy or too slow (Cassandra, Akka). Gossip-style when link failures must not be mistaken for node failures. FUSE when the application's real unit of failure is the group, not the node.
+
+**Tie to consensus:** FLP (#2) says no protocol guarantees consensus in an asynchronous system; failure detectors augment the model. Chandra & Toueg 1996 "shows that solving consensus is possible even with a failure detector that makes an infinite number of mistakes" — which is why detector *accuracy* is a tuning parameter, not a correctness prerequisite.
+
+*Source: Petrov, Database Internals (2019), Ch.9 "Failure Detection" — §Heartbeats and Pings through §Summary, PDF pp.246–254.*
+
 ---
 
 ## When to Use

@@ -12,6 +12,8 @@ Purpose: choose the right pooler, size it conservatively, and avoid feature mism
 - [AWS RDS / Aurora](#aws-rds-aurora)
 - [Supabase](#supabase)
 - [Sizing Principles](#sizing-principles)
+- [Idle Connections Are Not Free](#idle-connections-are-not-free)
+- [Evidence: Throughput and Latency vs Client Count](#evidence-throughput-and-latency-vs-client-count)
 - [Practical Starting Points](#practical-starting-points)
 - [Monitoring](#monitoring)
 - [PgBouncer](#pgbouncer)
@@ -76,6 +78,97 @@ Do not describe transaction pooling as "no prepared statements" without checking
 - Keep application pools smaller than people first guess; scale after measuring waiting clients and queue time.
 - Size from **concurrent in-flight queries**, not from web worker count or request rate alone.
 - For serverless, assume connection churn is the primary risk.
+
+### Idle Connections Are Not Free
+
+The common assumption is that an idle session costs nothing because it is not running
+a query. In PostgreSQL that is wrong, for two independent reasons.
+
+**Snapshot cost scales with total connections, not active ones.** MVCC requires every
+transaction to obtain a snapshot before it starts work, and building that snapshot
+means examining all open connections — the system cannot know a session is idle without
+checking it. Angelakos cites Tom Lane on this: it makes *"the (computational) cost of
+taking a snapshot proportional to the total number of connections"* (*PostgreSQL
+Mistakes and How to Avoid Them*, §6.4.2, p. 109). An idle session therefore slows down
+every *other* session's transaction start. Angelakos calls the result **snapshot
+contention**.
+
+PostgreSQL 14 improved this substantially. It did not remove it — as of current
+versions, obtaining snapshots for many incoming connections remains computationally
+significant.
+
+**Process and lock-table overhead is unavoidable.** PostgreSQL uses a process-per-
+connection model, so every connection is an OS process with its own memory,
+scheduling, and IPC overhead, plus shared-memory and lock-table entries. Thousands of
+mostly-idle backends risk process thrashing, where the system spends more time context
+switching than executing.
+
+There is also a latent-load hazard worth stating plainly: connections made available to
+an application may all be used at once. A traffic spike against thousands of idle
+connections can convert a quiet server into an overload instantly.
+
+**The sizing heuristic.** Angelakos states it as a rule of thumb with the caveat
+attached: *"As an empirical rule of thumb, you shouldn't have more PostgreSQL
+connections than four times the number of your cores. But again, don't use my guidance
+as canon because your optimal ratio is bound to be workload specific."* Treat `4 ×
+cores` as a ceiling to start from and tune down from measurement.
+
+Real concurrency is usually far below connection count. Angelakos notes that in the
+wild, *"applications with 5,000 connections have been seen only running about 15 to 30
+active tasks concurrently in the database."*
+
+**Fix by pooling, not by timeouts.** A transaction-mode pooler (PgBouncer, Supavisor)
+lets the application hold many client connections while only a small number reach
+PostgreSQL. Angelakos prefers this to `idle_session_timeout`, which closes sessions out
+from under clients that may not expect it. Note the distinction from
+`idle_in_transaction_session_timeout`, which targets a genuinely dangerous state and is
+worth setting regardless.
+
+Watch for `wait_event_type: LWLock` in `pg_stat_activity` — Angelakos flags a lot of it
+as a good indication of excessive concurrency, since lightweight locks have no fair
+queuing and contended lockers slow each other down.
+
+### Evidence: Throughput and Latency vs Client Count
+
+Angelakos ran `pgbench` at varying client counts against a fixed server to show what
+over-provisioning connections actually does. Quoted verbatim from table 6.1 (§6.3,
+p. 105), **with its test conditions**, which matter because the shape of the curve is
+the transferable finding, not the absolute numbers:
+
+Conditions: PostgreSQL 17.0 (Ubuntu 17.0-1.pgdg24.04+1); a cloud compute instance with
+16 GB RAM described as "modestly sized"; `shared_buffers = 1GB`, `work_mem = 4MB`,
+`max_connections = 2000`; pgbench built-in TPC-B-like workload at scaling factor 1000
+(a 100-million-row `pgbench_accounts`); 24 threads; 300-second runs driven from a
+separate host.
+
+| Number of clients | TPS | Latency average |
+|-------------------|-------|-----------------|
+| 2,000 | 352.1 | 5,535.267 ms |
+| 1,500 | 506.8 | 2,869.986 ms |
+| 1,000 | 586.1 | 1,694.616 ms |
+| 500 | 628.4 | 794.688 ms |
+| 250 | 635.7 | 392.554 ms |
+| 125 | 556.9 | 224.411 ms |
+| 63 | 613.0 | 102.758 ms |
+| 32 | 572.3 | 55.907 ms |
+| 16 | 301.8 | 53.009 ms |
+
+How to read it:
+
+- **Throughput plateaus; latency does not.** TPS is roughly flat from 1,500 down to 32
+  clients, so a throughput-only dashboard would suggest the server handled 1,500 clients
+  fine. It did not. Latency at 1,500 clients is 2.87 s versus 55.9 ms at 32 — the server
+  bought that flat TPS by queueing. Angelakos: *"It was only able to sustain this TPS
+  plateau by trading latency for higher concurrency."*
+- **The low end is measurement, not a limit.** The 301.8 TPS at 16 clients means the
+  benchmark stopped supplying enough work, not that the server got worse.
+- **Do not port these numbers.** They describe one instance size, one config, and one
+  synthetic workload. The transferable claim is the shape: past the server's real
+  capacity, added connections buy latency, not throughput. Reproduce on your own
+  hardware before quoting a client count.
+
+This is the empirical case for the sizing principles above: pick the pool size from
+where latency is still acceptable, and let the pooler queue the rest.
 
 ### Practical Starting Points
 

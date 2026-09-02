@@ -1,11 +1,11 @@
 {
   "metadata": {
     "skill": "software-clean-code-standard",
-    "updated": "2026-08-21",
-    "total_sources": 46,
+    "updated": "2026-08-31",
+    "total_sources": 47,
     "description": "Authoritative references for clean code standards (CC-*), code review practices, security-by-design, observability, refactoring, testing strategy, reliability, and modern official tooling documentation.",
     "title": "Software Clean Code Standard - Sources",
-    "last_updated": "2026-08-21"
+    "last_updated": "2026-08-31"
   },
   "categories": {
     "code_review_practices": [
@@ -363,6 +363,14 @@
         "update_frequency": "continuous",
         "access": "free",
         "add_as_web_search": false
+      },
+      {
+        "name": "ponytail (DietrichGebert)",
+        "url": "https://github.com/DietrichGebert/ponytail",
+        "add_as_web_search": false,
+        "optional": true,
+        "last_verified": "2026-08-31",
+        "description": "Source of the shortcut-marker + rot-detection debt ledger pattern in references/clean-code-standard.md. Pinned commit 2ed6c52c, MIT, extracted 2026-08-09 (docs/research/2026-08-09-skill-ponytail-scan.md)."
       }
     ],
     "modern_linting_tooling": [

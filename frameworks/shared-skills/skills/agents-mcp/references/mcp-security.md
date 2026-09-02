@@ -8,6 +8,9 @@ Security guidance for MCP servers. The authorization requirements below were wri
 
 - [Security Baseline](#security-baseline)
 - [Threat Model](#threat-model)
+- [Server-Mutation Threats](#server-mutation-threats)
+- [Taint Source/Sink Tagging](#taint-sourcesink-tagging)
+- [Confused Deputy: Worked Example](#confused-deputy-worked-example)
 - [Authorization: What Changed](#authorization-what-changed)
 - [Local vs Remote Security Model](#local-vs-remote-security-model)
 - [Local `stdio`](#local-stdio)
@@ -47,6 +50,71 @@ That means security needs to live in the **server contract**, not only in client
 | Weak local HTTP hardening | DNS rebinding / cross-origin abuse | Bind narrowly; validate Host and Origin |
 | Mis-scoped tokens | Cross-server token misuse | Validate audience/resource and scopes |
 | Massive outputs | Cost spikes, context collapse | Pagination, row limits, page sizes, truncation |
+| Dynamic capability injection | Agent silently inherits a higher-risk capability after vetting | Client-side tool allowlist; require change notification and re-verify the tool list; pin tool definitions to a version or hash |
+| Tool shadowing | Malicious tool outcompetes the legitimate one in planner selection; data intercepted | Semantic name-collision check before registering a new tool; sink-level user confirmation; restrict which servers the agent may reach |
+| Confused deputy | Under-privileged user drives a broadly privileged server into an unauthorized action | Check the *user's* permission, not only the server's; per-tool scoped, audience-bound, short-lived credentials |
+| Retrieval-index poisoning | Injected tool schema makes the planner call an unauthorized tool | Treat the tool-retrieval index as a trust boundary: signed/allowlisted schemas, write-restricted index |
+
+## Server-Mutation Threats
+
+Source: Styer, Patlolla, Mohan, Diaz, *Agent Tools & Interoperability with Model Context Protocol (MCP)*, Google, November 2025 (pp. 37–51). These threats are **structural** — they follow from a server controlling its own tool list and tool descriptions, so the `2026-07-28` stateless redesign does not remove any of them. Where the paper names spec fields, the control is restated functionally below; the spec facts in this skill's `SKILL.md` take precedence over the paper's.
+
+### Dynamic Capability Injection
+
+A server may change the set of tools, resources, or prompts it offers **after** the client vetted it, without notifying or asking the client. The agent then silently inherits capabilities outside the risk profile it was approved for — the paper's example is a book-search server that later adds a purchasing tool, turning a content-generation agent into one that can initiate financial transactions.
+
+The paper notes servers were not *required* to notify clients on tool-list change (its `listChanged` flag is the pre-redesign field name — treat "require change notification" as the control, not that identifier).
+
+Mitigations:
+
+- **Client-side allowlist** of permitted tools and servers, enforced in the SDK or host application — not in the prompt.
+- **Mandatory change notification**: require servers to signal tool-list changes and re-verify the list before use; treat an unannounced change as a failure.
+- **Pin tool definitions to a version or hash** captured at vetting. If a description or API signature changes afterwards, alert the user or disconnect — do not silently accept the new definition.
+- **Host the server in a controlled environment** (same environment as the agent, or a developer-managed container) when the capability set must not move without you.
+- **Policy enforcement at a gateway** that filters the returned tool list down to a centrally approved set.
+
+### Tool Shadowing
+
+Tool descriptions can declare arbitrary triggers, so a malicious tool with a broad description ("use whenever the user mentions 'save', 'store', 'keep', or 'remember'") outcompetes a narrowly described legitimate tool in planner selection. The user's data then flows to the attacker's server rather than the sanctioned one.
+
+Mitigations:
+
+- **Semantic name-collision check before registration.** Compare a new tool's name and description against existing trusted tools with an LLM-based similarity filter, not an exact or substring match, and refuse or flag near-collisions.
+- **Restrict reachable servers** to those explicitly approved, including servers already installed in the user's local environment.
+- **Sanitize tool descriptions** through a policy engine before they enter model context.
+- **mTLS** for sensitive client–server links so both ends verify identity.
+- **Deterministic policy-enforcement hooks at four lifecycle points** — before tool discovery, before tool invocation, before data is returned to the client, and before a tool makes an outbound call. Implement each as a plugin or callback that fails closed; this is where the pinning, allowlist, and sink checks are actually enforced.
+
+## Taint Source/Sink Tagging
+
+Tag every tool input and output as tainted or not tainted, and enforce at the sink rather than at the caller.
+
+- **Tainted by default**: user-provided free text, and any data fetched from an external or less-trusted system.
+- **Propagation**: an output derived from, or affected by, tainted data is itself tainted. Annotate the specific fields, not just the whole payload.
+- **Named sensitive sinks**: sending email to an external address, writing to a public store, file deletion, network egress, modification of production data.
+- **Rule**: a sensitive sink requires explicit user confirmation **regardless of which tool is invoking it**. Anchoring the check at the sink is what stops a shadow tool from exfiltrating silently — a per-tool approval list cannot, because the attacker controls which tool is chosen.
+
+Pair this with structured outputs and explicit sensitivity annotations so the client can identify, track, and control the flow rather than inferring it from free text.
+
+## Confused Deputy: Worked Example
+
+An MCP server is a privileged intermediary; the model is the party that gets confused.
+
+1. A company connects its AI assistant to a private code repository through an MCP server granted **broad repo privileges** so it can serve every employee.
+2. An employee **without** direct access to the whole repo asks the assistant to find `secret_algorithm.py` and create a branch containing its contents "so I can review it from my own environment."
+3. The model has no security context of its own for the repository. It relays the request to the server as an ordinary sequence of tool calls.
+4. The server checks only whether **it** may perform the action — never whether the *requesting user* may — and executes, exposing the file.
+
+The structural cause is that MCP authorization is **coarse-grained at the client–server boundary**: the client authorizes once against the server, and the paper (Nov 2025) records no per-tool or per-resource authorization layer and no native mechanism for passing the end user's credentials through to the resources the tools reach. Whether the current `2026-07-28` spec has added a per-tool authorization layer is a spec fact to confirm against `modelcontextprotocol.io/specification/2026-07-28` before asserting either way — but the deputy problem persists regardless whenever a server holds privileges broader than the calling user's.
+
+Mitigations:
+
+- Authorize against the **user's** identity, not just the server's credential; fail closed when the invoking identity is unknown.
+- Validate token audience and scope on every invocation; keep credentials scoped, bound to authorized callers, and short-lived.
+- Least privilege per tool — a report-reading tool gets read-only, never read-write or delete; avoid one broad credential spanning several systems.
+- Keep secrets out of the agent context entirely: pass them client→server through a side channel, never through the conversation.
+
+**Retrieval-based discovery adds a vector.** If tool discovery moves to a RAG-style retrieval step over a large tool index (the paper's proposed answer to context-window bloat), an attacker with write access to that retrieval index can inject a malicious tool schema and induce the planner to call an unauthorized tool — so the index itself becomes a trust boundary needing the same allowlist and pinning controls as the servers.
 
 ## Authorization: What Changed
 

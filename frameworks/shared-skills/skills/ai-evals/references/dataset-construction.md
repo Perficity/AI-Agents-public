@@ -19,6 +19,7 @@ and the run→compare→tune loop.
 - [Step 3: Get the system's answers](#step-3-get-the-systems-answers)
 - [Step 4: Compare ideal vs actual](#step-4-compare-ideal-vs-actual)
 - [Step 5: Tune — but tune the right thing](#step-5-tune--but-tune-the-right-thing)
+- [Building the robustness slice by perturbing memorized instances](#building-the-robustness-slice-by-perturbing-memorized-instances)
 - [Record schema](#record-schema)
 - [Known traps](#known-traps)
 - [Checklist](#checklist)
@@ -152,6 +153,90 @@ Discipline that keeps the loop honest:
   by pass-rate/variance (qa-agent-testing has the procedure) — labels authors
   guess are often wrong.
 
+## Building the robustness slice by perturbing memorized instances
+
+Step 1 sources questions from where real difficulty lives. This section covers a
+slice you cannot source that way, because the cases do not exist yet: variants of
+problems the model has already memorized. Sourcing alone will not produce them —
+production logs contain the *canonical* phrasings, which are exactly the ones the
+model handles.
+
+The framing here is **François Chollet's attributed analysis**, from Chollet &
+Watson, *Deep Learning with Python*, 3rd ed. (Manning, 2026), ch. 19 §§19.1.1–19.1.3
+(pp. 565–570). It is a specific and contested position on what LLMs are doing, not
+a consensus view — cite it as his argument. It is worth carrying anyway because
+the *eval-design* consequence holds regardless of whether you accept his account
+of the mechanism.
+
+His three failure modes, and what each implies for a case set:
+
+**1. Non-adaptation to novelty.** Chollet's claim is that a trained model is a
+static "interpolative database" whose parameters are frozen after training, so it
+excels at "recognizing or generating patterns highly similar to those encountered
+during training" and is "inherently poor at adaptation." The sharp version, quoted:
+"An LLM's ability to solve a given problem has nothing to do with problem
+complexity, and everything to do with familiarity — they will break their teeth on
+any sufficiently novel problem, no matter how simple."
+
+*Eval consequence:* difficulty labels that rank cases by intrinsic complexity are
+measuring the wrong axis. Stratify by **familiarity** — how likely this exact shape
+appeared in training — separately from complexity. A trivially easy but unfamiliar
+case belongs in the hard slice.
+
+**2. Oversensitivity to phrasing.** Chollet reports that "innocuous prompt
+modifications, such as changing place and people's names in a text paragraph or
+variable names in a block of code, can significantly degrade LLM performance." Two
+worked instances he gives:
+
+- The "Alice in Wonderland" riddle — "Alice has N brothers and she also has M
+  sisters. How many sisters does Alice's brother have?" (answer M + 1). Asking it
+  "with values commonly found in online instances of the riddle (like N = 3 and
+  M = 2) will generally result in the correct answer, but try tweaking the values
+  of M and N, and you will quickly get incorrect answers." He cites Nezhurina et
+  al., "Alice in Wonderland: Simple Tasks Showing Complete Reasoning Breakdown in
+  State-Of-the-Art Large Language Models" (`arXiv:2406.02061`).
+- Monty Hall variants, where models "tend to always output the canonical answer to
+  the puzzle… regardless of whether it makes sense in context."
+
+He also notes these specific prompts "were patched later on by special-casing
+them," and that "even already patched prompts will still fail if you make small
+changes to them" — which is the reason a *fixed* published probe is close to
+worthless as a gate.
+
+*Eval consequence:* this is the actionable core. **Build the robustness slice by
+perturbing memorized instances**, not by writing fresh hard questions. Take a case
+the system passes, then vary the surface while holding the required reasoning
+fixed: swap the numeric values, rename the people/places/variables, invert a
+premise so the canonical memorized answer becomes wrong, reorder clauses,
+substitute synonyms ("rewrite" for "rephrase"). Author the ideal answer from the
+*perturbed* problem — the trap is copying the canonical answer forward. A pass on
+the canonical form paired with a fail on a meaning-preserving perturbation is the
+finding; report the pair, not the aggregate.
+
+**3. No generalizable discrete programs.** Chollet's third mode is that memorized
+programs "often don't generalize well… especially true for programs that encode
+any kind of discrete logic." His example is character-level addition: a Transformer
+trained on hundreds of thousands of digit pairs reaches "very high accuracy. Very
+high, but not 100%," and for state-of-the-art LLMs not hardcoded to shell out to
+code, "they only have about 70% accuracy — quite underwhelming." Note the hedge in
+his own phrasing ("about"); do not harden it. He adds that "their accuracy is
+strongly dependent on which digits are being added, with more common digits
+leading to higher accuracy."
+
+*Eval consequence:* for any task with discrete/algorithmic structure, a single
+aggregate accuracy hides the shape of the failure. Slice by the *operand* — which
+digits, which value ranges, which input lengths — because performance varies by
+how common the specific values are, not by how hard the operation is. And check
+whether a passing case is passing because the system delegated to a tool; a
+tool-backed pass and a parametric pass are different capabilities and should be
+labeled differently in the record.
+
+**Scope note:** this is *model* brittleness. Brittleness in the **judge** —
+position, verbosity, self-preference, rubric-wording sensitivity — is a different
+failure and lives in `llm-judge-bias.md` and qa-agent-testing. Adversarial
+*safety* perturbation (jailbreak paraphrase, injection) lives in
+`safety-redteam-eval.md`. This section is about capability cases only.
+
 ## Record schema
 
 A portable per-case record that supports every step above:
@@ -171,10 +256,17 @@ A portable per-case record that supports every step above:
   "expected_behavior": { "must_cite": true, "refuse_if_unanswerable": false },
   "metadata": {
     "slice": "policy", "difficulty": "easy", "source": "support_tickets_2026q1",
-    "is_synthetic": false, "authors": ["a1", "a2"], "version": "1.2.0"
+    "is_synthetic": false, "authors": ["a1", "a2"], "version": "1.2.0",
+    "perturbation_of": null, "perturbation_kind": null, "familiarity": "canonical"
   }
 }
 ```
+
+For a robustness-slice case, `perturbation_of` carries the id of the canonical
+case it was derived from, `perturbation_kind` names the surface change
+(`values` | `entity-names` | `premise-inverted` | `clause-order` | `synonyms`),
+and `familiarity` flips to `perturbed` — so the canonical/perturbed pair can be
+scored together rather than averaged apart.
 
 Run output stores `actual_answer`, `trace`, `run_params` (model/prompt/seed),
 and per-layer `verdicts` so Step 4 attribution is possible.
@@ -208,6 +300,12 @@ applies:
 - One ideal "golden" prose answer for open-ended questions — penalizes valid
   rephrasings; use a rubric + acceptable variants instead
 - A dataset with no unanswerable cases — cannot measure hallucination/refusal
+- Only canonical phrasings of known problems — measures familiarity, not
+  capability; add perturbed variants of cases the system already passes
+- Copying the canonical ideal answer onto a perturbed case — the perturbation
+  usually changes the correct answer, and this silently grades against the old one
+- Averaging canonical and perturbed cases into one accuracy — hides the
+  pass-then-fail pair that is the actual finding
 
 ## Checklist
 
@@ -215,6 +313,9 @@ applies:
 - [ ] Production proportions mirrored; rare high-impact slices over-sampled
 - [ ] Every past bug added as a regression question
 - [ ] Unanswerable/refusal cases included
+- [ ] Robustness slice built by perturbing cases the system already passes, with
+      ideal answers re-authored from the perturbed problem and canonical/perturbed
+      pairs reported together
 - [ ] Ideal answers authored from the system's allowed context
 - [ ] Reference vs rubric chosen per question type; acceptable variants captured
 - [ ] Golden subset human-approved (LLM may draft, human signs off)

@@ -1,12 +1,12 @@
 {
   "metadata": {
     "skill": "qa-resilience",
-    "updated": "2026-07-11",
-    "version": "3.4",
+    "updated": "2026-08-24",
+    "version": "3.5",
     "total_sources": 36,
     "description": "Primary-source catalog for resilience engineering: deadlines, retries, hedging, overload protection, chaos testing, mesh policies, resilience telemetry, SLO-as-code, and AI/LLM failure modes.",
     "title": "QA Resilience - Sources",
-    "last_updated": "2026-07-11"
+    "last_updated": "2026-08-24"
   },
   "categories": {
     "reliability_foundations": [
@@ -34,7 +34,7 @@
         "name": "Google SRE Book - Handling Overload",
         "url": "https://sre.google/sre-book/handling-overload/",
         "type": "documentation",
-        "relevance": "Primary source for overload behavior, admission control, and graceful rejection.",
+        "relevance": "Primary source for overload behavior, admission control, graceful rejection, and per-customer quota / in-flight isolation limits.",
         "update_frequency": "static",
         "access": "free",
         "add_as_web_search": true,
@@ -44,7 +44,7 @@
         "name": "Google SRE Book - Addressing Cascading Failures",
         "url": "https://sre.google/sre-book/addressing-cascading-failures/",
         "type": "documentation",
-        "relevance": "Primary source for retries, backoff, fail-fast behavior, and anti-amplification patterns.",
+        "relevance": "Primary source for retries, backoff, fail-fast behavior, anti-amplification patterns, server-side deadline enforcement, deadline/cancellation propagation, bimodal latency, and the always-go-downward intra-layer rule.",
         "update_frequency": "static",
         "access": "free",
         "add_as_web_search": true,

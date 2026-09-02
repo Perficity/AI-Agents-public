@@ -57,6 +57,8 @@ def apply_rope(x, cos, sin):                      # x: (B, n_head, T, head_dim)
 
 Apply to `q` and `k` only (never `v`), after the head reshape, before the attention matmul.
 
+**Convention warning.** The snippet above uses the *interleaved* layout (adjacent pairs: `x[..., 0::2]` / `x[..., 1::2]`, re-interleaved by `stack(...).flatten(-2)`) — self-consistent and correct standalone. Llama/HuggingFace checkpoints use the *half-split* layout (`rotate_half`: `x[..., :d/2]` vs `x[..., d/2:]`). The two are **not** interchangeable against pretrained weights: writing one and loading the other's checkpoint produces garbage with no error. Pick the convention that matches the weights you intend to load.
+
 ## RMSNorm
 
 **GPT-2 did:** `nn.LayerNorm` — subtract mean, divide by std, scale (`gamma`) and shift (`beta`).
@@ -146,6 +148,8 @@ The `modded-nanoGPT` speedrun stacks Muon with other modern tricks — **QK-Norm
 Muon is no longer just a speedrun trick. "Muon is Scalable for LLM Training" (arXiv 2502.16982, Feb 2025) showed two fixes — **weight decay** and **per-parameter update-scale adjustment** — that let Muon train at scale without bespoke tuning, demonstrated on the 3B/16B-active **Moonlight** MoE with roughly 2× the compute efficiency of AdamW at matched loss. That paper's own benchmark is Moonlight only — treat the ~2× figure as a Moonlight-scale result, not a blanket production number.
 
 Since then, Muon (or a variant) has shown up in production at trillion-parameter scale, each with its own technical report rather than 2502.16982 directly: **Kimi K2** (Moonshot AI, 2025) uses **MuonClip** — Muon's orthogonalized update plus a **QK-Clip** mechanism that bounds attention-logit growth, letting a 1T-param model pretrain 15.5T tokens with no loss spikes (see §2 softmax-pathology parallel in [architecture-limitations-and-workarounds.md](architecture-limitations-and-workarounds.md)); **DeepSeek-V4** (April 2026) and **GLM-5** (Feb 2026, ~745B-param MoE) both name Muon in their own technical reports as a core optimizer choice, with GLM-5 detailing a zero-redundant-communication distributed Muon implementation and reporting that GQA-8 outperformed MLA in their internal ablation despite adopting Muon for the optimizer. Cite each model's own report for its specific recipe — don't cite the original Moonlight paper as evidence for what a *different* model's technical report claims. The split still holds: Muon on the 2D hidden matrices, AdamW on embeddings/head/1D params.
+
+**The other half of the optimizer story is hyperparameter *transfer*.** muP (maximal update parameterization) rescales initialization and per-layer learning rates so that the peak LR tuned on a small proxy model transfers to a much wider target, instead of being re-searched at every width. It is **not needed for the 124M reproduction** — a single-scale run just tunes the LR once — but it is what you reach for the moment you start changing width and want to avoid re-tuning. Verify the current parameterization details against the muP literature before implementing; the rules differ by which tensors you treat as width-scaled.
 
 Treat Muon and the speedrun stack as the "after you can reproduce GPT-2 with AdamW, here is the frontier" tier — not the first thing a learner wires up — but understand it is now a serious AdamW replacement, not a curiosity.
 

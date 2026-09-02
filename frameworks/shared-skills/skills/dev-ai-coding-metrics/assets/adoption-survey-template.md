@@ -224,6 +224,8 @@ Calculate a weighted composite:
 
 **Aggregate Score** = (Q1_score x 0.30) + (Q4_score x 0.25) + (Q8_score x 0.25) + (Q9_score x 0.20)
 
+> The items here are unvalidated single measures, and this weighted composite has not been tested for discriminant validity, convergent validity, or reliability. Treat the score as a directional tracking number, not a validated construct — see `software-ux-research/references/survey-design-guide.md` → *Construct Validity* before drawing analytical conclusions from it.
+
 ### Interpretation
 
 | Score Range | Label | Action |

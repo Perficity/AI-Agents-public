@@ -10,6 +10,8 @@
 - Common Anti-Patterns
 - Quick Reference
 - Implementation Checklists
+- Why Continuous Application: Automation Lag
+- Edge Cases & Fallbacks
 
 ---
 
@@ -403,6 +405,94 @@ kubectl describe application payment-api -n argocd
 - [ ] Optimize Git repository structure
 - [ ] Implement ApplicationSets for dynamic apps
 - [ ] Measure DORA metrics (lead time, deployment frequency)
+
+---
+
+## Why Continuous Application: Automation Lag
+
+The patterns above describe *how* reconciliation works. This section is the argument for *why* the reconciliation interval must stay short, and why a pipeline that applies only when code changes is not equivalent.
+
+Source: Morris, *Infrastructure as Code* 2e — Ch20 "Team Workflows" (pp. 349–351) and Ch12 "Managing Changes to Servers" (pp. 192–193).
+
+### The definition
+
+> "Automation lag is the time that passes between instances of running an automated process, such as applying infrastructure code. The longer it's been since the last time the process ran, the more likely it will fail."
+
+Morris's point is that this holds **even when nothing in your code changed**: "Things change over time, even when nobody has consciously made a change." His four causes:
+
+- "Someone has changed another part of the system, such as a dependency, in a way that only breaks when your code is reapplied."
+- "An upgrade or configuration change to a tool or service used to apply your code might be incompatible with your code."
+- "Applying unchanged code might nevertheless bring in updates to transitive dependencies, such as operating system packages."
+- "Someone may have made an manual fix or improvement that they neglected to fold back into the code. Reapplying your code reverts the fix." *(quoted as printed)*
+
+The corollary, in his words: **"the more frequently you apply infrastructure code, the less likely it is to fail. When failures do occur, you can discover the cause more quickly, because less has changed since the last successful run."**
+
+### The causal loop
+
+Read the last cause together with the consequences, and the failure mode is self-reinforcing:
+
+```text
+long gap since last apply
+        ↓
+next apply is large and unpredictable
+        ↓
+fear of running it
+        ↓
+"just this once" ad hoc manual fix (faster, feels safer)
+        ↓
+drift — the fix is not in the code
+        ↓
+next apply is now even more likely to fail (it will revert the fix)
+        ↓
+more fear  ──────────► back to the top
+```
+
+Each manual fix makes the automated path *more* dangerous, which makes the next manual fix more attractive. Continuous application breaks the loop by keeping the gap — and therefore the size of each apply — small enough that nobody is afraid of it.
+
+### The apply-on-change antipattern
+
+Ch12 names the habit directly. **"With the apply on change antipattern, configuration code is only applied to a server when there is a specific change to apply."** Also known as *ad hoc automation*. In its extreme form, "you only apply code to the server that you specifically intend to change."
+
+Morris's diagnosis of the origin is worth keeping, because it explains why the habit survives good tooling: "The apply on change antipattern is an extension of this way of working" — logging in and making the change by hand — "that happens to use an Infrastructure as Code tool instead of a manual command or on-off script." The tool is being used as "a scripting tool with awkward syntax."
+
+*Applicability:* "Applying code only as needed for a specific change may be fine for a single temporary server. But it's not a suitable method for sustainably managing a group of servers."
+
+*Consequences:* "If you only apply configuration code to make a specific change, you may have long gaps where the code is never applied to a particular server instance. When you finally do apply the code, it might fail because of other differences on the server than the one you meant to change."
+
+He then names the second-order problem — applying to *some* instances and not others. A performance fix applied to one server later arrives at the others "as a side effect of applying the code for the new change. The earlier change might have unexpected effects on other servers. Worse, the person applying the code may have forgotten about the performance optimization, so they take much longer to discover the cause of any problems it creates."
+
+That is the batching failure in one sentence: **applying only on change does not avoid the risky batch, it defers and hides it.** The batch still lands — later, larger, and attributed to the wrong change.
+
+### The fix: apply continuously
+
+> "A core strategy for eliminating configuration drift is to continuously apply infrastructure code to instances, even when the code hasn't changed."
+
+Morris notes the precedent — Chef and Puppet "are designed to reapply configuration on a schedule, usually hourly" — and places GitOps in the same lineage: "The GitOps methodology involves continuously applying code from a source code branch to each environment."
+
+The alternative he offers is immutable infrastructure, which "solves the problem of configuration drift in a different way. Rather than applying configuration code frequently to an infrastructure instance, you only apply it once, when you create the instance. When the code changes, you make a new instance and swap it out for the old one." But this does not exempt you: **"Automation lag is still potentially an issue, so teams that use immutable infrastructure tend to rebuild instances frequently."** An image built six months ago and never rebuilt has the same lag problem as a stack never reapplied.
+
+### GitOps-as-branches-only
+
+Morris's caution applies directly to teams adopting the patterns in this file:
+
+> "Some teams describe their process as GitOps, but only implement the branches for environments practice without continuously synchronizing code to environments. This makes it to easy to fall into an ad hoc change process, and bad habits of copying, pasting, and editing code changes for each environment, per the copy-paste antipattern." *(quoted as printed)*
+
+The distinction he draws is between the two halves of GitOps: defining systems as code in branches, **and** "continuously synchronizing code to systems … Rather than having a build server job or pipeline stage apply the code when it changes, GitOps uses a service that continuously compares the code to the system, reducing configuration drift."
+
+A repo with `env/stage` and `env/prod` branches, and a pipeline that applies on merge, has adopted only the first half. It is apply-on-change with Git branches — and it inherits every consequence above. **The reconciliation loop is not an implementation detail of GitOps; it is the half that does the work.**
+
+One further note from Morris, relevant to Pattern 2 (Multi-Environment Promotion) above: "GitOps discourages the use of delivery artifacts, instead promoting code changes by merging them to source code branches." That is a genuine tension with artifact-based promotion — see [../assets/terraform-iac/template-env-promotion.md](../assets/terraform-iac/template-env-promotion.md), which promotes pinned module versions. Both are defensible; what is not defensible is branch-based promotion *without* continuous sync.
+
+### Checklist
+
+- [ ] Reconciliation runs on an interval, not only on commit
+- [ ] Interval is short enough that a failed apply points at a small window of change
+- [ ] Alert fires when any environment has not successfully synced within N intervals — lag is monitored, not assumed
+- [ ] Self-heal enabled, so drift is corrected rather than accumulating until the next intentional change
+- [ ] No environment is reachable by an out-of-band apply path that bypasses the controller
+- [ ] Manual break-glass fixes have a mandatory fold-back-into-code step with an owner
+- [ ] Immutable images/AMIs are rebuilt on a cadence, not only when their definition changes
+- [ ] "We do GitOps" is verified against continuous sync, not just the presence of environment branches
 
 ---
 

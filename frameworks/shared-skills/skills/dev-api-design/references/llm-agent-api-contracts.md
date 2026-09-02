@@ -17,6 +17,8 @@ Use these contracts when exposing LLMs, agent tools, or multimodal models over H
 - [Agent Experience (AX) — 2026 Trend](#agent-experience-ax-—-2026-trend)
 - [AX Design Principles](#ax-design-principles)
 - [Agent-Friendly Patterns](#agent-friendly-patterns)
+- [Designing for LLM Consumers](#designing-for-llm-consumers)
+- [CLI as Agent Interface](#cli-as-agent-interface)
 - [Model Context Protocol (MCP) Integration](#model-context-protocol-mcp-integration)
 - [What MCP Provides](#what-mcp-provides)
 - [MCP API Contract Considerations](#mcp-api-contract-considerations)
@@ -91,6 +93,22 @@ APIs increasingly consumed by AI agents, not just humans. Design for machine-fir
 - Include `retry_after` in 429 responses (agents can auto-retry)
 - Provide `example_requests` in OpenAPI for agent prompting
 - Use semantic action names agents can reason about
+
+### Designing for LLM Consumers
+
+Three rules that matter specifically when the caller is an LLM rather than a scripted client. Directional heuristics from Ryan Day, *Hands-On APIs for AI and Data Science* (O'Reilly, 2025), ch. 12, which the author attributes partly to Blobr's "Is Your API AI-ready? Our Guidelines and Best Practices". No magnitudes are claimed by either source.
+
+**1. Ship dedicated summary-statistics endpoints.** Do not make the model derive counts and aggregates from a collection endpoint. When users ask an AI questions about summary information and counts, per Day, "the LLM's behavior can be erratic. It may try to perform a scan of every record in the API, it may just look at the record identifiers and infer this is the count, or it may try something completely different." A dedicated `/…/stats` or `/…/count` endpoint removes the guesswork — the aggregate becomes a lookup rather than an inference. This is the aggregation counterpart to the `capabilities` endpoint: both replace model reasoning with a declared answer.
+
+**2. Make search language-first, not identifier-keyed.** LLMs are more comfortable with language than with numbers, and they query with the terms the user actually said, not with record identifiers they have no way to know. Every collection an agent is expected to reach into needs a search endpoint that accepts free-text and human-meaningful filters and does not require an ID as the entry point. Keep identifier-keyed lookup for the follow-up call, once search has returned the ID. The MCP tool example below (`search_products`, required arg `query`, enum-constrained `category`) is this rule in schema form.
+
+**3. Treat field pruning and child-collection splitting as an accuracy control, not just a cost control.** The token-cost framing is well covered elsewhere — see `agents-mcp/references/mcp-security.md` for the context-budget side of the same lever. The additional claim here is about correctness: Day reports that "developers using ChatGPT have found that it struggles to perform calculations from very large datasets returned by APIs," and concludes that where a model is doing the arithmetic, trimming the payload improves its accuracy. Carry this as direction only — the source is anecdotal ("developers … have found"), reports no magnitude, and names no evaluation. Concretely:
+
+- Return only the critical fields for the entity, not every field.
+- Move child collections (`product.orders`) out of the parent response into their own endpoint.
+- Give agents parameters, filters, and pagination so they can narrow the result set before it reaches the context window.
+
+If the model is only reading the data back to a user, this is a cost decision. If the model is computing over the data, treat it as a correctness requirement and verify with an eval rather than assuming the trim was enough.
 
 ### CLI as Agent Interface
 

@@ -3,11 +3,11 @@
     "skill": "ai-scaling-laws",
     "title": "AI Scaling Laws - Sources",
     "description": "Canonical papers and references for LLM scaling laws, compute-optimal training, Kaplan vs Chinchilla, and GPU compute estimation.",
-    "updated": "2026-07-11",
+    "updated": "2026-08-29",
     "audit_date": "2026-07-11",
     "last_verified": "2026-07-11",
-    "last_updated": "2026-07-11",
-    "total_sources": 22
+    "last_updated": "2026-08-29",
+    "total_sources": 24
   },
   "categories": {
     "foundational_papers": [
@@ -93,6 +93,15 @@
         "update_frequency": "occasional",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "Chollet & Watson — Deep Learning with Python, 3rd ed. (ch. 19)",
+        "url": "https://www.manning.com/books/deep-learning-with-python-third-edition",
+        "type": "textbook",
+        "relevance": "Manning 2026. Chapter 19 is the strongest published counter-thesis to scaling-economics arguments: benchmarks-as-memorization-tests critique (pp. 571, 573), the value-centric vs program-centric poles of abstraction (pp. 585-588, Table 19.1/19.2), and the local/broad/extreme generalization spectrum (pp. 573-576). Cite as an ATTRIBUTED position ('Chollet argues...'), never as consensus.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
       }
     ],
     "post_chinchilla_research": [
@@ -212,6 +221,16 @@
         "update_frequency": "occasional",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "Abnar et al. — Parameters vs FLOPs: Scaling Laws for Optimal Sparsity for Mixture-of-Experts Language Models",
+        "url": "https://arxiv.org/abs/2501.12370",
+        "type": "research",
+        "relevance": "Varies MoE sparsity (fraction of inactive parameters) under parameter-size and total-compute constraints and finds an interior optimal sparsity per budget — the basis for the §6 correction that sparsity is a knob to search, not to maximise.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false,
+        "last_verified": "2026-08-29"
       }
     ]
   }

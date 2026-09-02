@@ -24,6 +24,7 @@ Comprehensive guide to contemporary architecture patterns based on industry tren
 - [11. Cell-Based Architecture](#11-cell-based-architecture)
 - [Architecture Selection Decision Tree](#architecture-selection-decision-tree)
 - [Modular Monolith vs. Microservices: Explicit Gates (2026 Default)](#modular-monolith-vs-microservices-explicit-gates-2026-default)
+- [Connascence: A Finer-Grained Coupling Vocabulary](#connascence-a-finer-grained-coupling-vocabulary)
 - [Anti-Patterns to Avoid](#anti-patterns-to-avoid)
 - [1. Distributed Monolith](#1-distributed-monolith)
 - [2. God Service](#2-god-service)
@@ -717,6 +718,39 @@ The 2026 expert default is **modular monolith first**. Move to microservices onl
 If none of these are true, keep the module inside the modular monolith. This is not a permanent choice — bounded contexts with clean module boundaries (see the module-boundary example above) are what make a later extraction cheap, so the real investment is in boundary discipline, not in choosing microservices early.
 
 **A cautionary real-world data point (not a universal rule).** In March 2023, Amazon's Prime Video team publicly described moving their *audio/video quality monitoring service* from a distributed, Lambda/Step-Functions-based microservices design to a monolithic application running on a single ECS task, reporting a 90% cost reduction (AWS Compute Blog, "Scaling up the Prime Video audio/video monitoring service and reducing costs by 90%," March 2023). The bottleneck was orchestration and inter-service data-passing overhead (S3 as intermediate storage between steps) hitting a hard scaling ceiling at roughly 5% of target load. Two caveats matter before citing this as evidence for a general "microservices are bad" argument: (1) it describes one specific, high-throughput, low-per-request-value monitoring workload inside Prime Video, not a company-wide architectural reversal — most of Prime Video's other services remained distributed; (2) the actual root cause was a specific anti-pattern (using object storage as a synchronous hand-off between orchestration steps at very high frequency), which is a narrower lesson than "monolith beats microservices." Use it as a reminder to validate the *coordination and data-passing* costs of a distributed design against the actual request volume, not as a blanket argument either way.
+
+## Connascence: A Finer-Grained Coupling Vocabulary
+
+"Coupled / not coupled" is too coarse to guide a refactor. Connascence — coined by Meilir Page-Jones in *What Every Programmer Should Know About Object-Oriented Design* (1996) and repopularized in Ford et al., *Building Evolutionary Architectures*, 2nd ed. (O'Reilly, 2022), Ch. 5 — gives graded terms. Page-Jones' definition: "Two components are connascent if a change in one would require the other to be modified in order to maintain the overall correctness of the system." Ford et al. describe it as "an enhanced language to describe coupling … it gives them a more concise way to discuss coupling and (more importantly) how to improve it."
+
+**Static connascence** — source-code-level coupling, visible to static analysis. Weakest to strongest:
+
+| Form | Multiple components must agree on… | Typical smell |
+|---|---|---|
+| Name (CoN) | the name of an entity | Method names — "the most common way that codebases are coupled and the most desirable," since refactoring tools make renames trivial |
+| Type (CoT) | the type of an entity | Shared parameter/variable types across a boundary |
+| Meaning / Convention (CoM/CoC) | the meaning of particular values | Hardcoded numbers instead of constants — e.g. `int TRUE = 1; int FALSE = 0` |
+| Position (CoP) | the order of values | Positional arguments: `updateSeat("14D", "Ford, N")` type-checks but is semantically wrong |
+| Algorithm (CoA) | a particular algorithm | A hashing algorithm that must run identically on client and server; change either detail and the handshake breaks |
+
+**Dynamic connascence** — runtime coupling, and harder to find: "Architects have a harder time determining dynamic connascence because we lack tools to analyze runtime calls as effectively as we can analyze the call graph."
+
+| Form | Condition | Typical smell |
+|---|---|---|
+| Execution (CoE) | order of execution matters | Setters that must be called before `send()` |
+| Timing (CoT) | timing of execution matters | Race condition between two threads |
+| Values (CoV) | several values must change together | Rectangle corner points; a value updated across separate databases in a distributed system — "all the values must change together or not at all" |
+| Identity (CoI) | components must reference the same entity | Two components sharing and updating a distributed queue |
+
+**Weirich's two rules.** Ford et al. credit Jim Weirich with repopularizing the concept and quote his two guidelines verbatim:
+
+> **Rule of Degree:** convert strong forms of connascence into weaker forms of connascence.
+>
+> **Rule of Locality:** as the distance between software elements increases, use weaker forms of connascence.
+
+Rule of Degree in practice: refactor Connascence of Meaning to Connascence of Name by introducing a named constant instead of a magic value. Rule of Locality is the boundary test — "forms of connascence that indicate poor coupling when far apart are fine when closer together." Connascence of Meaning between two classes in the same component is minor; the same form between two services is a defect. Prefer static over dynamic, since "developers can determine it through simple source code analysis, and modern tools make it trivial to improve static connascence."
+
+Use it as a service-boundary check: if a proposed split would leave Connascence of Algorithm, Execution, Timing, or Values crossing the new boundary, the seam is in the wrong place. Related: [fitness-functions-governance.md](fitness-functions-governance.md) covers the coupling metrics (afferent/efferent, instability, distance from the main sequence) that quantify what connascence names.
 
 ## Anti-Patterns to Avoid
 

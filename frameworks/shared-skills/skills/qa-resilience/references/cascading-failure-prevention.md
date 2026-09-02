@@ -293,6 +293,22 @@ function backoffWithJitter(attempt, baseMs = 100, maxMs = 30_000) {
 - [ ] Never retry non-idempotent operations without explicit safeguards
 - [ ] Add circuit breakers to stop retries when a dependency is down
 
+### Always Go Downward in the Stack
+
+Retry budgets bound how *many* attempts happen; this rule bounds their *direction*. *Site Reliability Engineering*, Ch. 22 §"Always Go Downward in the Stack" argues against peers in the same layer proxying or re-routing to each other on failure, because it introduces cycles into the request path:
+
+- **Distributed deadlock.** Peers wait on each other from the same thread pool. If backend A's pool is full, B holds a thread waiting for A — "this behavior can cause the thread pool saturation to spread."
+- **Load-triggered mode switch.** If peer traffic *rises* under failure (failover proxying, load rebalancing), the layer "can quickly switch from a low to high intra-layer request mode" exactly when it is least able to absorb it — the proxying adds parse and wait cost on top of the original overload.
+- **Harder bootstrapping**, since the layer now depends on itself being partly up.
+
+The book's prescription is to keep the retry decision with the client and let failure travel downward only: "if a frontend talks to a backend but guesses the wrong backend, the backend should not proxy to the correct backend. Instead, the backend should tell the frontend to retry its request on the correct backend."
+
+Practical form: fail fast upward with a redirect or an error naming the correct target, and let the layer above re-issue against it. A fix in the storage layer then repairs the layers above it, rather than each layer holding resources trying to repair itself sideways.
+
+- [ ] No same-layer proxying or failover-to-peer in the user request path
+- [ ] Misrouted requests return a redirect to the caller, not a sideways hop
+- [ ] Peer calls, where unavoidable, use a separate thread pool from inbound serving
+
 ---
 
 ## Connection and Thread Pool Exhaustion

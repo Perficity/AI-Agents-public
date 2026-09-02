@@ -2,10 +2,10 @@
   "metadata": {
     "title": "ai-local-model-ops - Sources",
     "description": "Local and self-hosted LLM runtime references for July 2026: local execution, self-hosted chat UIs, Apple Silicon / MLX, desktop runtimes, portable packaging, lightweight adaptation, and local optimization levers.",
-    "last_updated": "2026-07-11",
-    "updated": "2026-07-11",
+    "last_updated": "2026-08-24",
+    "updated": "2026-08-24",
     "skill": "ai-local-model-ops",
-    "total_sources": 15
+    "total_sources": 16
   },
   "runtime_and_ui": [
     {
@@ -58,6 +58,12 @@
       "name": "Unsloth",
       "url": "https://github.com/unslothai/unsloth",
       "description": "Lightweight adaptation and fine-tuning workflows on constrained hardware.",
+      "add_as_web_search": false
+    },
+    {
+      "name": "Machine Learning Systems (Reddi) - Ch.14 On-Device Learning",
+      "url": "https://mlsysbook.ai/",
+      "description": "Open textbook chapter on on-device learning. Table 14.1 quantifies how training amplifies inference constraints (memory footprint, compute, memory bandwidth, energy per sample), assuming standard backpropagation without gradient checkpointing. Amplification ranges are order-of-magnitude planning figures, unsourced in the textbook.",
       "add_as_web_search": false
     }
   ],

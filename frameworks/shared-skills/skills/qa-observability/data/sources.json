@@ -1,12 +1,12 @@
 {
   "metadata": {
     "skill": "qa-observability",
-    "updated": "2026-07-11",
-    "version": "2.6",
-    "total_sources": 33,
+    "updated": "2026-08-24",
+    "version": "2.7",
+    "total_sources": 35,
     "description": "Primary references for correlated telemetry, OpenTelemetry instrumentation, SLOs, burn-rate alerting, and performance evidence.",
     "title": "QA Observability - Sources",
-    "last_updated": "2026-07-11"
+    "last_updated": "2026-08-24"
   },
   "categories": {
     "standards_and_core_docs": [
@@ -62,11 +62,18 @@
       {
         "name": "OpenTelemetry GenAI Semantic Conventions",
         "url": "https://opentelemetry.io/docs/specs/semconv/gen-ai/",
-        "description": "Standardised span, metric, and event attributes for LLM and agent calls (gen_ai.operation.name, gen_ai.provider.name, token usage, tool calls, eval results). The conventions moved to a dedicated repo (open-telemetry/semantic-conventions-genai) in 2026. Precise stability tier of gen_ai.client and gen_ai.agent spans is unverified as of 2026-07-11 \u2014 secondary sources conflict (some report gen_ai.client reached Stable in early 2026, others report the whole GenAI/MCP surface still Development as of May 2026 with v1.36 as the transition baseline).",
+        "description": "Standardised span, metric, and event attributes for LLM and agent calls (gen_ai.operation.name, gen_ai.provider.name, token usage, tool calls, eval results). The conventions moved to a dedicated repo (open-telemetry/semantic-conventions-genai) in 2026. Precise stability tier of gen_ai.client and gen_ai.agent spans is unverified as of 2026-07-11 — secondary sources conflict (some report gen_ai.client reached Stable in early 2026, others report the whole GenAI/MCP surface still Development as of May 2026 with v1.36 as the transition baseline).",
         "add_as_web_search": true,
         "optional": false,
         "last_verified": "2026-07-11",
         "stability_warning": "Do not assume gen_ai.client, gen_ai.agent, or MCP conventions are Stable. Check the primary spec and its CHANGELOG before shipping. Use OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental to pin to latest experimental version."
+      },
+      {
+        "name": "Observability Engineering (Majors, Fong-Jones, Miranda) - Early Release, 9th release 2021-10-08",
+        "url": "https://www.oreilly.com/library/view/observability-engineering/9781492076438/",
+        "description": "Core analysis loop (Early Release ch. 7 / final ed. ch. 8), observability-driven development and the systems-not-functions scope boundary (ER ch. 10 / final ch. 11), predictive burn alerts (ER ch. 12 / final ch. 13), sampling reconstruction math (ER ch. 13 / final ch. 18). Chapter numbers differ between the 17-chapter Early Release and the 22-chapter 2022 final edition; cite both.",
+        "add_as_web_search": false,
+        "optional": false
       }
     ],
     "slo_and_error_budgets": [
@@ -97,6 +104,13 @@
         "description": "Useful when relating saturation, load shedding, and error-budget behavior.",
         "add_as_web_search": true,
         "optional": true
+      },
+      {
+        "name": "Database Reliability Engineering (Campbell & Majors, O'Reilly 2017)",
+        "url": "https://www.oreilly.com/library/view/database-reliability-engineering/9781491925935/",
+        "description": "Service-level indicator definitions for datastore-backed services; durability as an SLI distinct from availability (printed p. 16).",
+        "add_as_web_search": false,
+        "optional": false
       }
     ],
     "metrics_and_dashboards": [
@@ -246,7 +260,7 @@
         "last_verified": "2026-06-09"
       },
       {
-        "name": "Prometheus Native Histograms \u2014 GA Announcement",
+        "name": "Prometheus Native Histograms — GA Announcement",
         "url": "https://grafana.com/whats-new/2025-10-29-native-histograms-are-generally-available/",
         "description": "Grafana Labs announcement of Prometheus native histograms reaching GA (October 2025). Eliminates bucket pre-selection; requires protobuf exposition; treat rollout as infrastructure change.",
         "add_as_web_search": true,

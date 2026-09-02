@@ -2,9 +2,9 @@
   "metadata": {
     "title": "UX Research & Analysis - Sources",
     "description": "Curated resources for UX research methodologies, journey mapping, competitive analysis, usability testing, metrics frameworks, feedback analysis, research ops governance, demographic-inclusive research, A/B testing, and optional AI/automation research methods.",
-    "version": "1.8.0",
-    "last_updated": "2026-07-11",
-    "updated": "2026-07-11",
+    "version": "1.9.0",
+    "last_updated": "2026-08-24",
+    "updated": "2026-08-24",
     "total_sources": 215,
     "source_tier_guide": {
       "primary": "Standards bodies, regulators, official product documentation, or official pricing pages",
@@ -978,6 +978,14 @@
       "add_as_web_search": false,
       "verified_on": "2026-06-12",
       "source_tier": "vendor"
+    },
+    {
+      "name": "Accelerate: The Science of Lean Software and DevOps - Forsgren, Humble & Kim",
+      "url": "https://itrevolution.com/product/accelerate/",
+      "description": "Ch. 12-13 (printed pp. 170-196) are a practitioner introduction to psychometrics: latent constructs vs direct measures, discriminant/convergent validity and reliability, bad-question failure modes, and the analysis ladder. Source for the Construct Validity section of references/survey-design-guide.md, including the failure-notification construct that failed validity testing and split in two. Findings are from a self-reported mid-2010s survey population under an inferential-predictive design - 'associated with', not causal.",
+      "add_as_web_search": false,
+      "source_tier": "secondary",
+      "verified_on": "2026-08-24"
     }
   ],
   "ai_assisted_research_optional": [

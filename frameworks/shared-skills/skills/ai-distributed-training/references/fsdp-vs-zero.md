@@ -37,7 +37,7 @@ As of 2026, FSDP2 (the redesigned version in torchtitan) is the recommended star
 
 | DeepSpeed ZeRO Stage | FSDP2 equivalent (`fully_shard`) | What is Sharded |
 |---------------------|-----------------------|-----------------|
-| ZeRO-1 | (optimizer-state-only not a native FSDP2 mode) | Optimizer state |
+| ZeRO-1 | No native `fully_shard` mode — use DDP + `ZeroRedundancyOptimizer` (or a distributed-optimizer wrapper) for the same semantics | Optimizer state |
 | ZeRO-2 | `reshard_after_forward=False` | Optimizer state + gradients |
 | ZeRO-3 | `reshard_after_forward=True` (default) | Optimizer state + gradients + parameters |
 | ZeRO-Infinity | No FSDP equivalent | ZeRO-3 + NVMe offload |
@@ -46,18 +46,34 @@ As of 2026, FSDP2 (the redesigned version in torchtitan) is the recommended star
 
 ## Memory Model Comparison
 
-For a model with `M` parameters and `N` GPUs, memory per GPU for fp32 training (approx):
+**Units: bytes per parameter.** A dimensionless multiple of "M" cannot answer an OOM question — convert to bytes first. Assumptions below: `P` = parameter count, `N` = GPUs (shard degree), bf16 mixed precision with AdamW, which is the recipe the parent skill recommends. Activations are excluded — they are a separate, often larger term (see the Megatron activation formula in SKILL.md).
 
-| Strategy | Params | Gradients | Optimizer State | Total per GPU |
-|----------|--------|-----------|-----------------|---------------|
-| DDP | M | M | 2M (Adam) | ~4M |
-| ZeRO-1 | M | M | 2M/N | ~(2M + 2M/N) |
-| ZeRO-2 / FSDP2 (`reshard_after_forward=False`) | M | M/N | 2M/N | ~(M + 3M/N) |
-| ZeRO-3 / FSDP2 (`reshard_after_forward=True`) | M/N | M/N | 2M/N | ~4M/N |
+Per-parameter baseline, unsharded:
 
-At N=8 GPUs, ZeRO-3 / FSDP2 full sharding reduces per-GPU memory to ~1/8 of the baseline.
+```text
+bf16 params        2 B
+bf16 gradients     2 B
+fp32 master copy   4 B   <- mandatory under bf16 mixed precision; do not omit
+fp32 Adam m        4 B
+fp32 Adam v        4 B
+                  ----
+                  16 B/param
+```
 
-The `2M` optimizer-state term assumes Adam/AdamW (two fp32 moments). Muon carries less optimizer state per matmul parameter, so the optimizer-state row shrinks if you use a Muon/AdamW hybrid — though the sharding mechanics are unchanged.
+| Strategy | Params | Gradients | Optimizer state (master + m + v) | Bytes/param on each GPU |
+|----------|--------|-----------|----------------------------------|-------------------------|
+| DDP | 2 | 2 | 12 | 16 |
+| ZeRO-1 | 2 | 2 | 12/N | `4 + 12/N` |
+| ZeRO-2 / FSDP2 (`reshard_after_forward=False`) | 2 | 2/N | 12/N | `2 + 14/N` |
+| ZeRO-3 / FSDP2 (`reshard_after_forward=True`) | 2/N | 2/N | 12/N | `16/N` |
+
+Multiply by `P` for total state. **Worked case — 7B, bf16 + AdamW:** 7e9 × 16 B ≈ **112 GB** of model + optimizer state before a single activation, so it does not fit on one 80 GB H100. At N=8 with ZeRO-3 that is 112/8 = **14 GB per GPU**, leaving roughly 65 GB for activations, fragmentation, and the allocator's slack.
+
+Note that the reductions are not constants: ZeRO-1 and ZeRO-2 approach 4× and 8× only as N→∞ (at N=8 they are 2.9× and 4.3×), while ZeRO-3 is linear in N with no ceiling.
+
+**Legacy fp32 training** (fp32 params 4 + fp32 grads 4 + 8 optimizer = 16 B/param) happens to land on the same total, but the per-row split differs — the ZeRO-3 advantage is identical, the ZeRO-1/2 rows are not. Do not reuse the bf16 rows for an fp32 run.
+
+The 12 B optimizer term assumes Adam/AdamW. Muon carries less state per matmul parameter, so that column shrinks under a Muon/AdamW hybrid — the sharding mechanics are unchanged.
 
 ## Configuration Quick-Start
 

@@ -6,6 +6,10 @@ Sampling controls the fraction of traces (and associated spans) that are collect
 
 - [Head sampling](#head-sampling)
 - [Tail sampling](#tail-sampling)
+- [Reconstructing truth from sampled events](#reconstructing-truth-from-sampled-events)
+- [Percentiles under sampling](#percentiles-under-sampling)
+- [Consistent sampling: one decision per trace](#consistent-sampling-one-decision-per-trace)
+- [Target-rate sampling](#target-rate-sampling)
 - [OTel Collector tail-sampling processor](#otel-collector-tail-sampling-processor)
 - [Sampling bias — known trap](#sampling-bias--known-trap)
 - [Exemplars: wiring sampled traces to Prometheus metrics](#exemplars-wiring-sampled-traces-to-prometheus-metrics)
@@ -32,6 +36,80 @@ Tail sampling makes the keep/drop decision after all spans in a trace have been 
 **When to use:** High-traffic services where head sampling would hide low-frequency failures. Tail sampling is more complex to operate because the collector must buffer spans long enough to see the full trace before deciding.
 
 **Trade-off:** Requires stateful buffering in the collector. All spans for the same trace must be routed to the same collector instance (use load-balancing exporter for multi-instance collectors). Adds memory and latency overhead to the pipeline.
+
+## Reconstructing truth from sampled events
+
+> **Read this as the reasoning behind what your SDK already does, not as a build-it-yourself spec.** The source itself notes that "Increasingly, it's common for open source instrumentation libraries — such as OpenTelemetry — to implement that type of sampling logic for you", and that as those libraries become standard "it should become less likely that you would need to re-implement these sampling strategies in your own code." It also insists that even when you delegate, "it is essential that you understand the underpinnings of how sampling is implemented." That is what this section is for. Prefer the OTel SDK samplers and the Collector's processors; use the math below to reason about their output, to audit a backend's numbers, and to know what breaks when you configure them wrongly.
+>
+> Source: *Observability Engineering* (Early Release ch. 13; final ed. ch. 18), "Translating sampling strategies into code".
+
+The mitigation earlier in this file still stands: **derive rates and percentiles from metrics, not from sampled traces.** This section covers the other case — when the sampled events are the only record you have, and you must compute from them anyway.
+
+### Record the sample rate inside the event
+
+The naive fixed-rate approach requires the receiving end to remember which rate was in force. That breaks the moment the rate changes, because "the instrumentation collector wouldn't know exactly when the value changed."
+
+The fix is to make each event self-describing: **pass the current sample rate as a field on the event itself**, indicating that this event "statistically represents `sampleRate` similar events". This matters more than it first appears, because sample rates "can not only vary between services, but also vary within a single service as well" — one global constant is wrong on both axes.
+
+Practically: treat the per-event sample rate as a required attribute on any pipeline that samples, the same way you treat a trace ID. An event without its own rate cannot be weighted correctly after the fact.
+
+### Reconstruction math
+
+With the rate recorded per event, two operations become well defined:
+
+| Quantity | How to reconstruct |
+| --- | --- |
+| **Count** (e.g. events matching `err != nil`) | Multiply the count of each seen matching event by **its own** recorded `sampleRate`, then sum. Add together the number of *represented* events, not the number of *collected* events. |
+| **Sum** (e.g. total `durationMs`) | Weight each sampled event's value by its own `sampleRate` before adding the weighted figures. |
+
+Both are per-event, not per-batch: an event representing 1,000 similar events "should not be directly averaged with another event that represents 100 similar events."
+
+Why this matters for cross-checking a backend: a service instrumented with both events and metrics will show metric counters incremented for every request, while only a fraction of requests were sampled as events. Reporting 100 events for 100,000 requests is misleading if each event represents ~1,000. The reconstruction is what makes the two agree.
+
+## Percentiles under sampling
+
+Percentiles split into two cases, and conflating them is the common error.
+
+**Constant-probability sampling — no adjustment needed.** Quoting directly:
+
+> Scalar distribution properties such as the p99 and median do not need to be adjusted for a constant probability sampling, as they are not distorted by the sampling process.
+
+Every event had the same chance of selection, so the sampled distribution's shape matches the population's shape. Multiplying out would be wrong, not merely unnecessary.
+
+**Dynamic / variable rates — expansion is mandatory.** Once rates vary (adjusted by traffic volume, by key, or by outlier status), "you can no longer multiply out each event by a constant factor when reconstructing the distribution of your data." The telemetry system must use a weighted algorithm accounting for the probability in effect when each event was collected: for aggregating median or p99, **expand each event out into many** when computing the total number of events and where the percentile values fall.
+
+The failure mode if you skip this: an aggressively sampled bucket (high-volume, low-rate) is under-represented in the sorted distribution relative to a lightly sampled one, and the resulting p99 reflects the sampling policy as much as the service.
+
+## Consistent sampling: one decision per trace
+
+Spans of one trace are collected across multiple services, "with each service, potentially, employing its own unique sample strategy and rate." If each service rolls its own dice, "the probability that every span necessary to complete a trace will be the event that each service chooses to sample is relatively low" — you get orphaned fragments, and specifically the failure of "sampl[ing] an error far downstream for which the upstream context is missing."
+
+The fix: derive the sampling decision from a **centrally generated sampling/tracing ID propagated to all downstream handlers**, instead of independently generating a decision inside each one. Each service compares that propagated value against its own local rate rather than drawing a fresh random number.
+
+The property this buys — quoted, because the composition is the whole point:
+
+> Consistent sampling guarantees that if a 1:100 sampling occurs, a 1:99, 1:98, etc. sampling preceding or following it also preserves the execution context. And half of the events chosen by a 1:100 sampling will be present under a 1:200 sampling.
+
+In other words, nested rates compose: services with *different* rates still yield coherent traces, and a rate change is a monotone subset relationship rather than a reshuffle. In OpenTelemetry terms this is what `parentbased_traceidratio` and trace-ID-hash-based samplers implement — the ratio is evaluated against the trace ID, not against a fresh random draw. Prefer those over any per-service independent sampler.
+
+## Target-rate sampling
+
+Rather than flag-adjusting each service's rate as "traffic swells and sags", compute the rate from observed traffic. The book's formula, recomputed on an interval (a minute, in its example):
+
+```text
+sampleRate = requestsInPastMinute / (60 × targetEventsPerSec)
+```
+
+Clamped so that `sampleRate < 1` becomes `1.0` — i.e. never sample *up*; below the target volume, keep everything. The effect is a predictable resource cost: the sampled event stream targets a fixed events-per-second budget regardless of incoming volume.
+
+**Per-key extension.** A single global target still lets one population drown out another, and still misses long-tail events, "because the chance that a 99.9th percentile outlier event will be chosen for random sampling is slim." Two refinements, in order:
+
+1. **Multiple static rates by key** — sample baseline (non-outlier) events at one rate and errors or slow queries at a much more generous one. Still vulnerable to an error spike: "If the application experiences a spike in the rate of errors, every single error gets sampled," and the instrumentation traffic spikes with it.
+2. **Per-key target rates** — maintain a separate counter and separate computed rate per key (e.g. `outliersInPastMinute / (60 × outlierEventsPerSec)` alongside the ordinary-request rate). Anomalous requests get their own guaranteed budget while ordinary requests are rate-limited into theirs. Keys can be simple (HTTP method) or composite (method + request size + user-agent, or `[customer ID, dataset ID, error code]`).
+
+A key seen many times in the recent window "is less interesting than combinations that were seen less often" — per-key dynamic rates are how you keep low-volume sources visible without letting high-volume ones set the bill.
+
+**Do not hand-roll this.** The book's own Go examples are pedagogical and flag their own defect — the counter swap is annotated "Real production code would do something less prone to race conditions". Configure the equivalent in the OTel SDK sampler or a Collector processor (`probabilistic_sampler`, `tail_sampling` with `rate_limiting` and `composite` policies) and use the formulas above to set and audit the parameters.
 
 ## OTel Collector tail-sampling processor
 

@@ -232,13 +232,13 @@ If you document or demo these in a shared skill, label them as Anthropic-specifi
 
 This repository uses the portable `SKILL.md` contract for Codex-compatible skills.
 
-Verified (July 2026, developers.openai.com/codex/skills): Codex CLI discovers skills natively from `.agents/skills` (scanned from the current working directory up to the repository root) and from `~/.codex/skills` (personal) / `.codex/skills` (project) — it reads the standard `name` + `description` frontmatter directly, the same as the open spec, with no adjunct YAML required. `agents/openai.yaml` in this repo is **not** part of that native mechanism; it is a repo-local convenience file for this codebase's own Codex/OpenClaw build tooling and UI surfaces. Do not present it as something Codex CLI itself reads out of the box.
+Verified (2026-08-26, codex-cli 0.149.1 binary + docs): Codex CLI discovers skills natively from `.agents/skills` (scanned from the current working directory up to the repository root) and from `~/.codex/skills` (personal) / `.codex/skills` (project) — it reads the standard `name` + `description` frontmatter directly, the same as the open spec, with no adjunct YAML required. **Correction to earlier guidance:** `agents/openai.yaml` IS read natively by current Codex CLI (0.149.x) — it sits in Codex's capability-discovery manifest list alongside `.mcp.json` and plugin manifests, described in the binary as "an extended, product-specific config intended for the machine/harness to read, not the agent." Supported keys include `interface.{display_name, short_description, icon_small, icon_large, brand_color, default_prompt}`, `dependencies.tools[]`, and `policy.allow_implicit_invocation` — when `false`, the skill is **not injected into model context by default** but stays invocable explicitly via `$skill` (defaults to `true`). This makes `policy.allow_implicit_invocation: false` the native per-skill lazy-loading switch for explicit-only skills, complementing the global `skills.max_context_tokens` budget.
 
-If a Codex-facing UI metadata file exists, treat it as an adjunct file rather than frontmatter:
+Treat the file as harness-facing config, not frontmatter:
 
-- `agents/openai.yaml` is repo-local metadata for UI surfaces, not part of the portable `SKILL.md` core.
-- Keep `SKILL.md` valid on its own; do not move required workflow instructions into adjunct UI metadata.
+- Keep `SKILL.md` valid on its own; do not move required workflow instructions into `agents/openai.yaml`.
 - If `agents/openai.yaml` exists, regenerate or revalidate it when the skill intent changes.
+- Set `policy.allow_implicit_invocation: false` for specialists that should only be reached explicitly or via a router (`legal-*`, `project-*`, and client-specific families) to keep them out of the per-session skills listing budget.
 - Keep the fields distinct:
   - `interface.short_description` should read like a compact UI label.
   - `interface.default_prompt` should tell Codex when to load the skill.

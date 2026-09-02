@@ -2,12 +2,12 @@
   "metadata": {
     "skill": "ai-distributed-training",
     "title": "AI Distributed Training - Sources",
-    "description": "Curated mid-2026 sources for distributed LLM pre-training: FlashAttention 1/2/3, DeepSpeed ZeRO, PyTorch FSDP2, Megatron-LM/Core, DeepSeek-V3 (DualPipe/EP/fp8), Ring Attention (context parallel), Muon/MuonClip (Kimi K2, DeepSeek-V4, GLM-5), torchtitan, pre-training frameworks (litgpt, nanotron), GPT-2 reproduction projects, and rented GPU provider docs.",
-    "last_updated": "2026-07-11",
-    "updated": "2026-07-11",
-    "audit_date": "2026-07-11",
-    "last_verified": "2026-07-11",
-    "total_sources": 24
+    "description": "Curated mid-2026 sources for distributed LLM pre-training: FlashAttention 1/2/3, DeepSpeed ZeRO, PyTorch FSDP2, Megatron-LM/Core, DeepSeek-V3 (DualPipe/EP/fp8), Ring Attention (context parallel), Muon/MuonClip (Kimi K2, DeepSeek-V4, GLM-5), torchtitan, pre-training frameworks (litgpt, nanotron), GPT-2 reproduction projects, rented GPU provider docs, and storage/dataloader I/O (Fregly Ch.5, GPUDirect Storage, DALI, 3FS), and hardware fault tolerance / checkpoint-interval reliability (Reddi MLSysBook Ch.16).",
+    "last_updated": "2026-08-31",
+    "updated": "2026-08-31",
+    "audit_date": "2026-08-31",
+    "last_verified": "2026-08-31",
+    "total_sources": 34
   },
   "categories": {
     "research_papers": [
@@ -61,6 +61,15 @@
         "url": "https://arxiv.org/abs/2412.19437",
         "type": "research",
         "relevance": "Landmark efficient-training reference: DualPipe bidirectional pipeline overlap, cross-node expert parallelism without tensor parallelism, fine-grained fp8 training, auxiliary-loss-free MoE load balancing. Essential for any MoE / frontier-scale distributed training.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Training Deep Nets with Sublinear Memory Cost (Chen et al. 2016)",
+        "url": "https://arxiv.org/abs/1604.06174",
+        "type": "research",
+        "relevance": "Origin of the O(sqrt(n)) gradient-checkpointing result: checkpoint sqrt(n) segments of an n-layer net for one extra forward pass per mini-batch. Cited to keep the sqrt(n)-segment policy distinct from per-transformer-block checkpointing, which gives a constant-factor saving instead.",
         "update_frequency": "static",
         "access": "free",
         "add_as_web_search": false
@@ -136,6 +145,15 @@
         "update_frequency": "static",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "Vijay Janapa Reddi, Machine Learning Systems (MLSysBook, open textbook, Oct 2025) — Ch. 16, Robust AI, §16.4 Hardware Faults",
+        "url": "https://mlsysbook.ai/",
+        "type": "book",
+        "relevance": "Primary source for references/failure-budget-and-checkpointing.md: transient/permanent/intermittent fault taxonomy, per-device MTBF ranges and the cluster-level compounding arithmetic that drives checkpoint cadence, Table 16.1 fault-tolerance overhead (single/double-bit ECC, TMR, checkpoint-restart), Table 16.2 ECC memory-bandwidth impact, and the silent-data-corruption note for large checkpoints. Tables 16.1/16.2 and the MTBF ranges carry no citation in the textbook — treat as textbook-reported and verify against vendor specs before use.",
+        "update_frequency": "occasional",
+        "access": "free",
+        "add_as_web_search": false
       }
     ],
     "official_framework_docs": [
@@ -165,6 +183,15 @@
         "update_frequency": "weekly",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "torchft — per-step fault-tolerant distributed training (PyTorch)",
+        "url": "https://github.com/pytorch/torchft",
+        "type": "official_docs",
+        "relevance": "Meta/PyTorch project for per-step fault tolerance: fault-tolerant DDP/HSDP plus LocalSGD/DiLoCo, with a lighthouse coordinator that allows replica-group membership to change at step granularity so a lost node does not force a full-job restart. The 2026 successor to pure checkpoint/restart on large clusters. Verified live 2026-08-31; young and moving — check current API maturity before depending on it.",
+        "update_frequency": "frequent",
+        "access": "free",
+        "add_as_web_search": false
       }
     ],
     "pretraining_frameworks": [
@@ -199,7 +226,72 @@
         "name": "llm.c GitHub (Karpathy)",
         "url": "https://github.com/karpathy/llm.c",
         "type": "tool",
-        "relevance": "Karpathy's minimal C/CUDA GPT-2 pre-training implementation. Educational reference; used in 'Let's reproduce GPT-2' video. Excellent for understanding training loop fundamentals.",
+        "relevance": "Karpathy's minimal C/CUDA GPT-2 pre-training implementation. Educational reference; used in 'Let's reproduce GPT-2' video. Last push 2025-06-26 (verified 2026-08-31) — stable but not actively developed; expect toolchain drift against a current CUDA/PyTorch stack.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "levanter GitHub (marin-community)",
+        "url": "https://github.com/marin-community/levanter",
+        "type": "tool",
+        "relevance": "JAX/TPU pre-training framework from Stanford CRFM, now maintained under the Marin community project. The older stanford-crfm/levanter path 301-redirects here (verified 2026-08-31). Slower cadence than torchtitan/Megatron-LM: last push 2026-01-26.",
+        "update_frequency": "quarterly",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "nanochat GitHub (Karpathy)",
+        "url": "https://github.com/karpathy/nanochat",
+        "type": "tool",
+        "relevance": "Karpathy's end-to-end small-model train+chat reference loop; uses Muon. Actively developed, so preferred over llm.c as the executable GPT-2-scale reproduction target.",
+        "update_frequency": "monthly",
+        "access": "free",
+        "add_as_web_search": true
+      }
+    ],
+    "storage_and_data_pipeline": [
+      {
+        "name": "Chris Fregly, AI Systems Performance Engineering (O'Reilly, Nov 2025) — Ch. 5, GPU-Based Storage I/O Optimizations",
+        "url": "https://www.oreilly.com/library/view/ai-systems-performance/9798341627772/",
+        "type": "book",
+        "relevance": "Primary source for references/storage-and-dataloader-io.md: sequential-vs-random read layout, NVMe blk-mq and NFS client tuning, replication vs compression tradeoffs, GPUDirect Storage and gdsio benchmarking, cuda-checkpoint, dataloader-bound diagnosis, and the continuous profiling workflow.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      },
+      {
+        "name": "NVIDIA GPUDirect Storage Documentation (cuFile, nvidia-fs, gdsio)",
+        "url": "https://docs.nvidia.com/gpudirect-storage/",
+        "type": "documentation",
+        "relevance": "Authoritative GDS reference: cuFile API, supported filesystems and RDMA stacks, O_DIRECT requirements, and the gdsio benchmarking tool. Hardware/driver support drifts — verify requirements here rather than quoting a version.",
+        "update_frequency": "monthly",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "NVIDIA DALI GitHub",
+        "url": "https://github.com/NVIDIA/DALI",
+        "type": "tool",
+        "relevance": "GPU-accelerated data loading and preprocessing (JPEG/video decode, augmentation) for input-bound training. Reference for offloading dataloader CPU work to the GPU.",
+        "update_frequency": "weekly",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "PyTorch DataLoader Reference",
+        "url": "https://docs.pytorch.org/docs/stable/data.html",
+        "type": "documentation",
+        "relevance": "Canonical semantics for num_workers, pin_memory, prefetch_factor, persistent_workers, collate_fn, and DistributedSampler — the knobs used in the dataloader-bound diagnosis workflow.",
+        "update_frequency": "monthly",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "DeepSeek 3FS (Fire-Flyer File System)",
+        "url": "https://github.com/deepseek-ai/3FS",
+        "type": "tool",
+        "relevance": "Open-source filesystem codesigned for AI random-read workloads: direct file I/O bypassing the page cache, RDMA-first data paths, sharded metadata. Reference point for storage codesign at ultrascale.",
         "update_frequency": "monthly",
         "access": "free",
         "add_as_web_search": true

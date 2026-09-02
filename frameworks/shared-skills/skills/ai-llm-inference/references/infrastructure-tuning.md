@@ -2,6 +2,8 @@
 
 Production-ready infrastructure optimization patterns for OS, containers, and Kubernetes environments running GPU-accelerated LLM inference workloads.
 
+This file is the command-level checklist — what to set and how. For the decision criteria behind these settings (when THP hurts rather than helps, MPS vs MIG selection, CUDA/driver compatibility and PTX-JIT, NVLink-domain-aware GPU allocation, QoS and OOM-killer tradeoffs), see [gpu-node-and-cluster-tuning.md](gpu-node-and-cluster-tuning.md).
+
 ## Table of Contents
 
 - [OS & CPU Optimization](#os-&-cpu-optimization)

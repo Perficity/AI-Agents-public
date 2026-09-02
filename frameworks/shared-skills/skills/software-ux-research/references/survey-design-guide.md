@@ -13,6 +13,12 @@ Practical guide to designing, distributing, and analyzing surveys for UX researc
 - [Question Design: Avoiding Bias](#question-design-avoiding-bias)
 - [Common Biases and Fixes](#common-biases-and-fixes)
 - [Question Writing Checklist](#question-writing-checklist)
+- [Construct Validity: Measuring What Cannot Be Measured Directly](#construct-validity-measuring-what-cannot-be-measured-directly)
+- [Latent Constructs vs Direct Measures](#latent-constructs-vs-direct-measures)
+- [The Validity Ladder](#the-validity-ladder)
+- [A Construct That Failed Validity Testing](#a-construct-that-failed-validity-testing)
+- [Bad-Question Failure Modes](#bad-question-failure-modes)
+- [The Analysis Ladder](#the-analysis-ladder)
 - [Survey Length and Completion Rate](#survey-length-and-completion-rate)
 - [Length vs Completion Benchmarks](#length-vs-completion-benchmarks)
 - [Completion Rate Optimization](#completion-rate-optimization)
@@ -137,6 +143,86 @@ Practical guide to designing, distributing, and analyzing surveys for UX researc
 - [ ] "Other" or "Not applicable" option included where relevant
 - [ ] Scale direction is consistent throughout survey (low → high)
 - [ ] No jargon or internal terminology
+
+---
+
+## Construct Validity: Measuring What Cannot Be Measured Directly
+
+Some things can be measured directly — the response time of a page, the count of clicks. Attitudes, trust, perceived effort, and culture cannot. Those require a **latent construct**: several survey items (called *manifest variables*) that each capture one aspect of the underlying idea, combined into a single score. Source for the framing and the worked examples below: Forsgren, Humble & Kim, *Accelerate* (IT Revolution, 2018), Ch. 13 (printed pp. 183–196) and Ch. 12 (pp. 170–182).
+
+### Latent Constructs vs Direct Measures
+
+| Aspect | Direct measure | Latent construct |
+| ------ | -------------- | ---------------- |
+| Example | Page load time, task completion rate | Perceived usability, trust, team culture |
+| Instrument | One measurement | Several items, averaged |
+| Failure mode | Instrument breaks silently | One bad item is outvoted by the others |
+| Analysis unit | The measure itself | The construct, never a single item |
+
+The point of using several items is defensive. *Accelerate* names three benefits: constructs force you to define what you are measuring; they give several views into the same behavior so rogue data is visible; and they make it harder for a single bad respondent or misread item to skew the result. Note that "all measures are proxies" — this applies to system telemetry as much as to surveys. Response time is a proxy for performance whether or not you say so.
+
+Asking "Is your culture good?" fails on both halves: the respondent picks their own definition of *culture*, and *good* is undefined. Define the construct first, then write one item per facet.
+
+### The Validity Ladder
+
+Run these before any correlation, regression, or segment comparison. Each rules out a specific way the instrument can be wrong.
+
+| Test | Definition (verbatim, *Accelerate* Ch. 13) | What it rules out |
+| ---- | ------------------------------------------ | ----------------- |
+| **Discriminant validity** | "tests to make sure that items that are not supposed to be related are actually unrelated" | Your items are quietly measuring something else too — the construct is contaminated by an adjacent concept |
+| **Convergent validity** | "tests to make sure that items that are supposed to be related are actually related" | Your items do not hang together — you have several small constructs, not one |
+| **Reliability** (internal consistency) | "provides assurance that the items are read and interpreted similarly by those who take the survey" | Respondents are interpreting the same wording differently, so the average is noise |
+
+Reliability is conventionally reported as **Cronbach's alpha** — the standard internal-consistency coefficient. Higher alpha means the items are answered more consistently as a set; it does *not* certify that the set measures the right thing, which is what the two validity tests are for. A construct can be highly reliable and still measure the wrong concept.
+
+Together, validity and reliability "confirm our measures. They come before any analysis." Re-run them periodically, not once — *Accelerate* recommends reassessing "especially if you suspect a change in the system or environment."
+
+### A Construct That Failed Validity Testing
+
+*Accelerate* reports a **failure-notification** construct that did not survive testing (Ch. 13, printed pp. 193–194). The original five items were:
+
+- We are primarily notified of failures by reports from customers.
+- We are primarily notified of failures by the NOC.
+- We get failure alerts from logging and monitoring systems.
+- We monitor system health based on threshold warnings (ex. CPU exceeds 90%).
+- We monitor system health based on rate-of-change warnings (ex. CPU usage has increased by 25% over the last 10 minutes).
+
+In a pilot with about 20 technical professionals the items loaded together. On the full dataset they did not: "when we ran our statistical tests, they did not confirm a single construct, but instead revealed two constructs." The first two items measured "notifications that come from outside of automated processes"; the remaining three measured "notifications that come from systems" or "proactive failure notification." The single construct was dropped and replaced by the split.
+
+Two lessons. First, a small pilot can pass an instrument that a full sample rejects — pilots check comprehension, not structure. Second, the split was the finding: only after separating them could the authors report that proactive failure notification "is a technical capability that is predictive of software delivery performance." A merged construct would have averaged the two apart.
+
+*Accelerate* has a second example of the same discipline. Its delivery-performance construct was intended to combine four metrics — lead time, release frequency, time to restore service, and change fail rate — but "the four measures don't pass all of the statistical tests of validity and reliability." Only three formed a valid, reliable construct, and change fail rate was reported separately thereafter. When a measure you *want* in the construct will not load, drop it from the construct and report it on its own.
+
+### Bad-Question Failure Modes
+
+These break the construct before any statistic runs. The table in [Common Biases and Fixes](#common-biases-and-fixes) covers the same ground for individual questions; these are the four *Accelerate* names explicitly (Ch. 13, printed p. 185):
+
+| Failure mode | Definition | Book's example |
+| ------------ | ---------- | -------------- |
+| **Leading** | Biases the respondent toward a direction | "Was Napoleon short?" — use "How would you describe Napoleon's height?" |
+| **Loaded** | Forces an answer that isn't true for the respondent | "Where did you take your certification exam?" assumes they took one |
+| **Multiple questions in one** (double-barreled) | Asks two things, so the answer is uninterpretable | "Are you notified of failures by your customers and the NOC?" — customers? the NOC? both? neither? |
+| **Unclear language** | Terms the respondent does not share | Use language respondents are familiar with; clarify and give examples |
+
+Note that the double-barreled example is the failure-notification construct's own subject matter, split correctly into separate items — that is what the two-item/three-item separation above is doing.
+
+Push polls are the extreme case: questions "difficult to answer honestly unless you already agree with the 'researcher's' point of view." Internal surveys reach this by accident when the writer already knows the answer they want.
+
+### The Analysis Ladder
+
+Never analyze a single item as if it were a construct. *Accelerate* orders analysis by increasing complexity (Ch. 12, after Leek 2013): **descriptive → exploratory → inferential predictive → predictive → causal → mechanistic**. Their research covers only the first three, plus classification.
+
+Practical rules for survey work:
+
+1. **Validate before you analyze.** Discriminant validity, convergent validity, reliability — then correlations.
+2. **Correlation is the exploratory stage, not the conclusion.** "Correlation looks at how closely two variables move together — or don't — but it doesn't tell us if one variable's movement predicts or causes the movement in another variable." Two variables can move together through a third variable or chance.
+3. **Analyze the construct mean, not the items.** Average the item scores (e.g. 1–7) and analyze that. Report item-level distributions only as diagnostics.
+4. **Single-item measures buy narrow conclusions only.** Quick surveys "can be useful if they are based on well-written and carefully understood questions. However, it is important that only narrow conclusions are drawn from these types of surveys." NPS is the well-studied exception — carefully developed, well-documented, and comparable across companies precisely because it is standardized; better multi-item satisfaction measures exist, but a single measure is easier to collect.
+5. **Say "associated with," not "causes."** Causal analysis "generally requires randomized studies," which most survey work is not.
+
+**Provenance caveat for any *Accelerate* figure.** The findings come from a self-reported, self-selected survey population across four annual collections in the mid-2010s. Direction-of-effect claims rest on an inferential-predictive design (theory-driven hypothesis, then test), which the authors distinguish from causal analysis. Quote magnitudes verbatim with their date, or hedge them — do not restate them as current industry constants.
+
+**Ready-made validated construct.** The seven-item Westrum organizational-culture instrument — a worked example of a construct that *did* pass validity and reliability testing — is reproduced with its scoring and caveats in [`foundations-team-theory/references/westrum-culture-measurement.md`](../../foundations-team-theory/references/westrum-culture-measurement.md).
 
 ---
 

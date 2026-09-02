@@ -85,6 +85,13 @@
       "url": "https://code.claude.com/docs/en/common-workflows",
       "description": "Official workflows including project setup and documentation",
       "add_as_web_search": true
+    },
+    {
+      "name": "Anthropic: The new rules of context engineering for Claude 5 generation models",
+      "url": "https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models",
+      "description": "Primary source (Thariq, Claude Code team, 2026-07-24): ~80% of Claude Code's system prompt removed for Claude 5-gen models (Opus 5, Fable 5) with no eval loss. Six shifts: rules->judgment, examples->interface design, upfront->progressive disclosure, repetition->single tool-description home, manual CLAUDE.md->auto-memory, markdown specs->rich references (HTML/code/rubrics). Recommends lightweight CLAUDE.md (gotchas only), non-overconstraining skills, /doctor to rightsize context.",
+      "published": "2026-07-24",
+      "add_as_web_search": true
     }
   ],
   "official_openai": [
@@ -223,7 +230,7 @@
       "add_as_web_search": true
     },
     {
-      "name": "alexop.dev: Stop Bloating Your CLAUDE.md \u2014 Progressive Disclosure",
+      "name": "alexop.dev: Stop Bloating Your CLAUDE.md — Progressive Disclosure",
       "url": "https://alexop.dev/posts/stop-bloating-your-claude-md-progressive-disclosure-ai-coding-tools/",
       "description": "Progressive disclosure architecture pattern for keeping root memory lean while maintaining deep context access",
       "add_as_web_search": true

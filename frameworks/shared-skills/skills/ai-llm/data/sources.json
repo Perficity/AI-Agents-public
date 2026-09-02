@@ -1,13 +1,13 @@
 {
   "metadata": {
     "skill": "ai-llm",
-    "updated": "2026-07-11",
+    "updated": "2026-08-31",
     "audit_date": "2026-07-11",
     "last_verified": "2026-07-11",
-    "total_sources": 60,
+    "total_sources": 83,
     "description": "Curated July 2026 sources for LLM engineering: architecture selection, retrieval, adaptation, evaluation, migration, deployment, governance, current-provider verification, post-training algorithms, MoE, distributed training, and test-time compute.",
     "title": "AI Llm - Sources",
-    "last_updated": "2026-07-11"
+    "last_updated": "2026-08-31"
   },
   "categories": {
     "standards_and_protocols": [
@@ -82,6 +82,33 @@
         "update_frequency": "continuous",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "Designing Large Language Model Applications (Pai, O'Reilly 2025)",
+        "url": "https://www.oreilly.com/library/view/designing-large-language/9781098150495/",
+        "type": "book",
+        "relevance": "Ch. 3 is the source for tokenizer-diagnostics.md: fertility and parity metrics, glitch/undertrained tokens, domain-mismatch fragmentation, and vocabulary extension for domain adaptation.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Build a Large Language Model (From Scratch) (Raschka, Manning 2024)",
+        "url": "https://www.manning.com/books/build-a-large-language-model-from-scratch",
+        "type": "book",
+        "relevance": "Ch. 7 is the source for the SFT loss-masking and collate mechanics in dataset-formatting-guide.md: ignore_index=-100, keeping the first EOS unmasked, per-batch dynamic padding.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Build a Reasoning Model (From Scratch) (Raschka, Manning 2026)",
+        "url": "https://www.manning.com/books/build-a-reasoning-model-from-scratch",
+        "type": "book",
+        "relevance": "Ch. 8 is the source for the hard-vs-soft distillation distinction, the closed-API/tokenizer blockers, and the point-in-time DGX Spark resource comparison in advanced-llm-patterns.md.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
       }
     ],
     "official_platform_docs": [
@@ -407,6 +434,24 @@
         "update_frequency": "weekly",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "LLaMA-Factory (GitHub)",
+        "url": "https://github.com/hiyouga/LLaMA-Factory",
+        "type": "repository",
+        "relevance": "Unified fine-tuning framework: SFT/DPO/KTO/ORPO/SimPO/PPO, 2-8 bit QLoRA, 100+ models incl. VLMs, LLaMA Board WebUI. Verified active 2026-08-31 (~74.5k stars).",
+        "update_frequency": "weekly",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "The future of torchtune (deprecation notice, issue #2883)",
+        "url": "https://github.com/pytorch/torchtune/issues/2883",
+        "type": "repository",
+        "relevance": "Official notice that torchtune development wound down in 2025; repo no longer actively maintained. Verified 2026-08-31 — cited so the skill can say 'don't start new work on it' with provenance.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
       }
     ],
     "post_training_and_rl": [
@@ -490,6 +535,60 @@
         "update_frequency": "static",
         "access": "free",
         "add_as_web_search": false
+      },
+      {
+        "name": "Instruction Tuning With Loss Over Instructions (Shi et al., 2024)",
+        "url": "https://arxiv.org/abs/2405.14394",
+        "type": "research",
+        "relevance": "Cited as the contested counter-evidence to masking instruction tokens during SFT: reports conditions where NOT masking instructions benefits performance. Direction only.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "DoRA: Weight-Decomposed Low-Rank Adaptation",
+        "url": "https://arxiv.org/abs/2402.09353",
+        "type": "research",
+        "relevance": "Liu et al. (verified 2026-08-31). Decomposes weights into magnitude + direction, LoRA on the direction; peft use_dora=True. Source for the DoRA row in fine-tuning-recipes.md.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA (rsLoRA)",
+        "url": "https://arxiv.org/abs/2312.03732",
+        "type": "research",
+        "relevance": "Kalajdzievski (verified 2026-08-31). Replaces LoRA's alpha/r scaling with alpha/sqrt(r) so high-rank adapters keep learning. Source for the rank>=64 guidance.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Few-Shot Parameter-Efficient Fine-Tuning is Better and Cheaper than In-Context Learning (IA3/T-Few)",
+        "url": "https://arxiv.org/abs/2205.05638",
+        "type": "research",
+        "relevance": "Liu et al. (verified 2026-08-31). IA3 scales activations by learned vectors; minimal per-task parameters. Source for the IA3 row.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "QLoRA: Efficient Finetuning of Quantized LLMs",
+        "url": "https://arxiv.org/abs/2305.14314",
+        "type": "research",
+        "relevance": "Dettmers et al. (verified 2026-08-31). NF4 4-bit base, double quantization, paged optimizers; LoRA adapters on top. Source for the QLoRA recipe details.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "LoRA Learns Less and Forgets Less",
+        "url": "https://arxiv.org/abs/2405.09673",
+        "type": "research",
+        "relevance": "Biderman et al. (verified 2026-08-31). LoRA can underperform full fine-tuning on hard target domains while forgetting less out-of-domain. Source for the when-full-FT escalation rule; direction only, no magnitudes quoted.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
       }
     ],
     "evaluation_and_observability": [
@@ -564,6 +663,94 @@
         "update_frequency": "weekly",
         "access": "free",
         "add_as_web_search": true
+      }
+    ],
+    "model_compression_and_distillation": [
+      {
+        "name": "Hinton, Vinyals & Dean — Distilling the Knowledge in a Neural Network",
+        "url": "https://arxiv.org/abs/1503.02531",
+        "type": "research",
+        "relevance": "Origin of logit/soft-label knowledge distillation; cited as the reference point for temperature-softened distribution matching.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Gu et al. — MiniLLM: On-Policy Distillation of Large Language Models",
+        "url": "https://arxiv.org/abs/2306.08543",
+        "type": "research",
+        "relevance": "Replaces forward KL with reverse KL for generative LLM distillation; cited for the mode-averaging failure mode of small students.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Agarwal et al. — On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes (GKD)",
+        "url": "https://arxiv.org/abs/2306.13649",
+        "type": "research",
+        "relevance": "Names and fixes the train/inference distribution mismatch in auto-regressive KD by training the student on its own generations with teacher feedback.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Hsieh et al. — Distilling Step-by-Step",
+        "url": "https://arxiv.org/abs/2305.02301",
+        "type": "research",
+        "relevance": "Extracts LLM rationales as additional supervision in a multi-task setup; cited as the rationale-distillation variant.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Sreenivas et al. — LLM Pruning and Distillation in Practice: The Minitron Approach",
+        "url": "https://arxiv.org/abs/2408.11796",
+        "type": "research",
+        "relevance": "Prune-then-distill recipe compressing Llama 3.1 8B and Mistral NeMo 12B; cited as the compression-first path and the depth-vs-width pruning comparison.",
+        "last_verified": "2026-08-29"
+      }
+    ],
+    "expert_panel_aug_2026": [
+      {
+        "name": "Compact Language Models via Pruning and Knowledge Distillation (Minitron, original)",
+        "url": "https://arxiv.org/abs/2407.14679",
+        "type": "research",
+        "relevance": "Original Minitron paper behind the prune-then-distill path in Pattern 7; source of the '<3% of the original training data' and 'up to 40x fewer training tokens per model' retraining-budget figures now quoted verbatim.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "PEFT — LoRA adapter conceptual guide (variants: rsLoRA, DoRA, PiSSA, LoRA+)",
+        "url": "https://huggingface.co/docs/peft/main/en/conceptual_guides/adapter",
+        "type": "documentation",
+        "relevance": "Live-verified source for the LoRA-variant table in fine-tuning-recipes.md: rsLoRA alpha/sqrt(r) 'stabilizes the adapters and increases the performance potential from using a higher r', PiSSA 'converges more rapidly than LoRA', LoRA+ 'up to 2x' speed and '1-2%' performance, DoRA magnitude/direction decomposition.",
+        "last_verified": "2026-08-31"
+      },
+      {
+        "name": "PEFT — Quantization guide (QLoRA config fields, VeRA/AdaLoRA/IA3 quantization support)",
+        "url": "https://huggingface.co/docs/peft/main/en/developer_guides/quantization",
+        "type": "documentation",
+        "relevance": "Source for the QLoRA three-dtype rule in Recipe 3: bnb_4bit_quant_type='nf4', bnb_4bit_use_double_quant=True (nested quantization of already-quantized weights), bnb_4bit_compute_dtype=torch.bfloat16, and target_modules='all-linear' as QLoRA-style training. Also confirms VeRA supports bitsandbytes quantization.",
+        "last_verified": "2026-08-31"
+      },
+      {
+        "name": "vLLM — LoRA adapters (multi-adapter serving)",
+        "url": "https://docs.vllm.ai/en/latest/features/lora.html",
+        "type": "documentation",
+        "relevance": "Source for the multi-adapter serving note: 'Requests can specify the LoRA adapter as if it were any other model via the model request parameter', with concurrency governed by max_loras. Supersedes the Houlsby adapter-tuning hot-swap niche.",
+        "last_verified": "2026-08-31"
+      },
+      {
+        "name": "torchtune issue #2883 — [IMPORTANT] The future of torchtune",
+        "url": "https://github.com/meta-pytorch/torchtune/issues/2883",
+        "type": "repository",
+        "relevance": "Dated basis (2025-07-15) for the torchtune framework-table cell: active development stopped in favour of a successor repo for end-to-end post-training at scale, with critical bug fixes and security patches continuing through 2025. Framed as migration, not abandonment.",
+        "last_verified": "2026-08-31"
+      },
+      {
+        "name": "GaLore: Memory-Efficient LLM Training by Gradient Low-Rank Projection",
+        "url": "https://arxiv.org/abs/2403.03507",
+        "type": "research",
+        "relevance": "Cited as the middle option in the 'when full fine-tuning instead' escalation: memory-efficient FULL fine-tuning via low-rank gradient projection, distinct from PEFT adapter methods.",
+        "last_verified": "2026-08-31"
+      },
+      {
+        "name": "LoRA+: Efficient Low Rank Adaptation of Large Models",
+        "url": "https://arxiv.org/abs/2402.12354",
+        "type": "research",
+        "relevance": "Paper behind the LoRA+ row in the LoRA-variants table (separate learning rates for the A and B matrices).",
+        "last_verified": "2026-08-31"
       }
     ]
   }

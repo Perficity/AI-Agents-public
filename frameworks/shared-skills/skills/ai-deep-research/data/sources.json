@@ -5,7 +5,7 @@
     "last_updated": "2026-07-11",
     "updated": "2026-07-11",
     "skill": "ai-deep-research",
-    "total_sources": 17
+    "total_sources": 19
   },
   "research_workflows": [
     {
@@ -18,6 +18,18 @@
       "name": "Claude Deep Research Skill",
       "url": "https://github.com/199-biotechnologies/claude-deep-research-skill",
       "description": "Reference for multi-phase research structure and long-running synthesis workflows.",
+      "add_as_web_search": false
+    },
+    {
+      "name": "Google Research - AI co-scientist (2025)",
+      "url": "https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co-scientist/",
+      "description": "Multi-agent hypothesis-generation architecture: Generation, Reflection, Ranking (Elo-based tournament over hypotheses), Evolution, Proximity, and Meta-review roles under a supervisor, run as a generate-debate-evolve loop. Also the stated source of the open-access/negative-results literature bias behind A13. Validation claims are single-vendor self-reported and are deliberately not imported.",
+      "add_as_web_search": false
+    },
+    {
+      "name": "Antonio Gulli, Agentic Design Patterns (Springer, 2025) - Ch. 21 Exploration and Discovery",
+      "url": "https://link.springer.com/book/10.1007/979-8-8688-1980-1",
+      "description": "Book chapter describing the AI co-scientist role taxonomy and its stated limitations (bounded by open-access literature; no access to unpublished negative results). Basis for the hypothesis-generation section in SKILL.md and anti-pattern A13.",
       "add_as_web_search": false
     }
   ],

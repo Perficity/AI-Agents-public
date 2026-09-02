@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Backend-neutral BM25-lite + vector + RRF demo for retrieval experiments.
+"""Backend-neutral BM25 + vector + RRF demo for retrieval experiments.
 
 This is a portable teaching and smoke-test script, not a replacement for a real
-search engine. It accepts the same JSONL shape as exact_search_baseline.py and
+search engine. The lexical leg is Okapi BM25 (Lucene-style IDF, k1 term-frequency
+saturation, b length normalisation) so --k1/--b line up with the grid in
+references/bm25-tuning.md. It accepts the same JSONL shape as exact_search_baseline.py and
 emits predictions compatible with retrieval_eval.py.
 """
 
@@ -32,12 +34,25 @@ def idf(doc_tokens: list[list[str]]) -> dict[str, float]:
     return {term: math.log(1 + (total - count + 0.5) / (count + 0.5)) for term, count in df.items()}
 
 
-def lexical_scores(query_terms: list[str], doc_tokens: list[list[str]], idf_map: dict[str, float]) -> list[float]:
+def lexical_scores(
+    query_terms: list[str],
+    doc_tokens: list[list[str]],
+    idf_map: dict[str, float],
+    k1: float = 1.2,
+    b: float = 0.75,
+) -> list[float]:
+    """Okapi BM25. k1 caps how much repeated terms count; b scales the length penalty."""
+    avg_len = sum(len(doc) for doc in doc_tokens) / max(len(doc_tokens), 1)
     scores: list[float] = []
     for doc in doc_tokens:
         counts = Counter(doc)
-        length_norm = 1.0 / math.sqrt(max(len(doc), 1))
-        scores.append(sum(counts[term] * idf_map.get(term, 0.0) for term in query_terms) * length_norm)
+        norm = k1 * (1.0 - b + b * len(doc) / max(avg_len, 1e-9))
+        score = 0.0
+        for term in query_terms:
+            tf = counts[term]
+            if tf:
+                score += idf_map.get(term, 0.0) * tf * (k1 + 1.0) / (tf + norm)
+        scores.append(score)
     return scores
 
 
@@ -60,6 +75,8 @@ def main() -> int:
     parser.add_argument("--candidate-k", type=int, default=50)
     parser.add_argument("--return-k", type=int, default=10)
     parser.add_argument("--rrf-k", type=float, default=60.0)
+    parser.add_argument("--k1", type=float, default=1.2, help="BM25 term-frequency saturation")
+    parser.add_argument("--b", type=float, default=0.75, help="BM25 length normalisation (0=off, 1=full)")
     args = parser.parse_args()
 
     try:
@@ -78,7 +95,7 @@ def main() -> int:
             q_text = str(query.get(args.query_text_field, ""))
             q_terms = tokens(q_text)
             q_vec = as_vector(query, args.embedding_field, args.query_text_field, args.hash_embed, args.hash_dim)
-            sparse = lexical_scores(q_terms, doc_tokens, idf_map)
+            sparse = lexical_scores(q_terms, doc_tokens, idf_map, args.k1, args.b)
             dense = [cosine(q_vec, doc_vec) for doc_vec in doc_vectors]
             sparse_ranks = rank_map(sparse, ids, args.candidate_k)
             dense_ranks = rank_map(dense, ids, args.candidate_k)
@@ -94,7 +111,7 @@ def main() -> int:
                 "expected_ids": query.get("expected_ids", []),
                 "retrieved_ids": [doc_id for doc_id, _ in ranked],
                 "scores": {doc_id: score for doc_id, score in ranked},
-                "retrieval_method": "bm25_lite_vector_rrf",
+                "retrieval_method": "bm25_vector_rrf",
             }, ensure_ascii=True))
     except (KeyError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

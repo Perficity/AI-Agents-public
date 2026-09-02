@@ -3,6 +3,8 @@
 
 *Purpose: A complete operational template for planning, executing, validating, and safely rolling out production releases using modern DevOps and progressive delivery patterns.*
 
+> **Curate this checklist, or it becomes ritual.** Google's Launch Coordination Engineering team governs its launch checklist by two rules: *"Every question's importance must be substantiated, ideally by a previous launch disaster"* and *"Every instruction must be concrete, practical, and reasonable for developers to accomplish."* The pressure this resists is real — *"there is a near-infinite number of questions to ask about any system, and it is easy for the checklist to grow to an unmanageable size. Maintaining a manageable burden on developers requires careful curation."* Curation runs both ways: items are added only against a traced incident, and removed once obsolete — LCEs make small updates continuously, and *"Once or twice a year a team member reviews the entire checklist to identify obsolete items."* So before adopting a line below, name the incident it would have caught; if you cannot, delete it. Sections that a platform capability has since absorbed should collapse into one line naming that capability rather than restating its requirements. (*Site Reliability Engineering*, Ch. 27 §"The Launch Checklist")
+
 ---
 
 # 1. Release Overview

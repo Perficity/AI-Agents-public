@@ -33,7 +33,11 @@ Use when page layout, diagrams, tables, forms, or charts matter. Keep text extra
 
 Use when entity traversal or relationship questions matter and unstructured text still provides needed support or quotations.
 
-## 6. Retrieval Debugging Loop
+## 6. Summary-Tree Retrieval (RAPTOR)
+
+Use when the question spans a whole document or theme ("what does this contract commit us to", "summarise the risks across these reports") and flat chunk retrieval returns fragments that never add up. Build a tree by recursively embedding, clustering, and summarising chunks, then retrieve across levels so the model sees both leaf passages and higher-level summaries (Sarthi et al., arXiv 2401.18059). Cheaper than GraphRAG when there is no entity structure worth extracting; skip it when queries are passage-level lookups or the corpus updates faster than the tree can be rebuilt — summaries go stale silently.
+
+## 7. Retrieval Debugging Loop
 
 1. Confirm expected evidence exists in the corpus.
 2. Test lexical-only and dense-only retrieval separately.

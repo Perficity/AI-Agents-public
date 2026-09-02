@@ -1,12 +1,12 @@
 {
   "metadata": {
     "skill": "ai-rag",
-    "updated": "2026-08-09",
-    "total_sources": 60,
-    "description": "Primary-source catalog for retrieval engineering: retrieval mode choice, hosted retrieval, tool-first/MCP, crawl and research ingestion, hybrid and multivector search, multimodal and graph retrieval, evaluation, observability, and 2025-2026 research additions (hallucination detection, corpus poisoning, LazyGraphRAG, LightRAG, Jina reranker-v3, iterative retrieval, long-context degradation, agentic RAG query planning, SDAG sparse-attention poisoning defense, ColBERT-Att, AMES, OpenAI Responses API file search, streaming trust-weight EMA for graph-element confidence).",
-    "version": "5.6",
+    "updated": "2026-08-29",
+    "total_sources": 69,
+    "description": "Primary-source catalog for retrieval engineering: retrieval mode choice, hosted retrieval, tool-first/MCP, crawl and research ingestion, hybrid and multivector search, multimodal and graph retrieval, evaluation, observability, and 2025-2026 research additions (hallucination detection, corpus poisoning, LazyGraphRAG, LightRAG, Jina reranker-v3, iterative retrieval, long-context degradation, agentic RAG query planning, SDAG sparse-attention poisoning defense, ColBERT-Att, AMES, OpenAI Responses API file search, streaming trust-weight EMA for graph-element confidence, embedding-model contrastive training and domain adaptation).",
+    "version": "5.7",
     "title": "AI RAG - Sources",
-    "last_updated": "2026-08-09"
+    "last_updated": "2026-08-24"
   },
   "categories": {
     "foundational_research": [
@@ -105,6 +105,60 @@
         "url": "https://arxiv.org/abs/2004.12832",
         "type": "research",
         "relevance": "Foundational late-interaction retrieval reference for multivector-style precision upgrades.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Hands-On Large Language Models (Alammar & Grootendorst, O'Reilly 2024), Ch. 10: Creating and Fine-Tuning Embedding Models",
+        "url": "https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/",
+        "type": "book",
+        "relevance": "Contrastive training fundamentals, bi-encoder (SBERT) vs cross-encoder, negative-example taxonomy (easy / semi-hard / hard) and why hard negatives matter most, MNR/InfoNCE loss and its in-batch-negatives interaction with batch size, fine-tuning vs training from scratch, Augmented SBERT for scarce labels, TSDAE adaptive pretraining for domain shift. Basis for the escalation ladder in references/embedding-model-guide.md.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      },
+      {
+        "name": "AI-Powered Search (Grainger, Turnbull & Irwin, Manning 2025), Ch. 5, 8, 10-12",
+        "url": "https://www.manning.com/books/ai-powered-search",
+        "type": "book",
+        "relevance": "Click models and LTR operations. Ch. 11: SDBN click model - mark each session's last click, treat every result at or above it as examined, grade = clicks/examines (position-bias correction); beta prior (prior_a = prior_grade x prior_weight) to damp confidence bias so a 1-click/1-examine doc cannot grade 1.0. Ch. 10: six-step LTR pipeline (judgments -> feature logging -> transform to ML problem -> train/evaluate -> store model -> search) and the train/serve feature-consistency rule; taught via SVMrank as a pedagogical choice - port the pipeline shape, not the algorithm. Ch. 12: presentation bias and Gaussian-process-driven explore/exploit. Ch. 8: signal-spam defence via per-user dedup in aggregation. Ch. 5.4: semantic knowledge graph - foreground/background set comparison scored like a z-score, sigmoid-normalized to -1.0..1.0, giving relatedness with no LLM. Basis for references/click-models-and-bias-correction.md, references/learning-to-rank-pipeline.md, and Pattern 1b in references/graph-rag-patterns.md.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      },
+      {
+        "name": "RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval",
+        "url": "https://arxiv.org/abs/2401.18059",
+        "type": "research",
+        "relevance": "Sarthi et al. (verified 2026-08-29). Builds a retrieval tree by recursively embedding, clustering, and summarising chunks so retrieval can pull passages and summaries at multiple abstraction levels. Source for the whole-document / thematic-question row in the retrieval mode table.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Document Expansion by Query Prediction (Doc2Query)",
+        "url": "https://arxiv.org/abs/1904.08375",
+        "type": "research",
+        "relevance": "Nogueira et al. (verified 2026-08-29). Predicts likely queries per document with a seq2seq model and appends them to the indexed text to lift lexical recall. Source for the document-expansion step in bm25-tuning.md.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Rank1: Test-Time Compute for Reranking in Information Retrieval",
+        "url": "https://arxiv.org/abs/2502.18418",
+        "type": "research",
+        "relevance": "Weller et al. (verified 2026-08-29). Reranker distilled from reasoning-model traces that spends test-time compute and emits an explainable reasoning chain per judgement. Source for the reasoning-reranker tier in ranking-pipeline-guide.md; no magnitudes quoted.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Late Chunking: Contextual Chunk Embeddings Using Long-Context Embedding Models",
+        "url": "https://arxiv.org/abs/2409.04701",
+        "type": "research",
+        "relevance": "Günther et al. (verified 2026-08-29). Embeds the full document first and pools chunk vectors after the transformer so each chunk keeps surrounding context. Source for the late-chunking vs contextual-retrieval decision in chunking-strategies.md.",
         "update_frequency": "static",
         "access": "free",
         "add_as_web_search": false
@@ -357,6 +411,33 @@
         "update_frequency": "continuous",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "Graph Retrieval-Augmented Generation: A Survey",
+        "url": "https://arxiv.org/abs/2408.08921",
+        "type": "research",
+        "relevance": "Primary source for the GraphRAG framing used in graph-rag-patterns.md: G-indexing / G-retrieval / G-generation stages, the retrieval-granularity ladder (nodes -> triplets -> paths -> subgraphs -> hybrid/adaptive), and graph-to-LLM serialization formats (adjacency/edge table, natural language, node sequence, code-like GraphML/GML, syntax tree). Cite this rather than secondary book reproductions of its figures.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Unifying Large Language Models and Knowledge Graphs: A Roadmap",
+        "url": "https://arxiv.org/abs/2306.08302",
+        "type": "research",
+        "relevance": "Primary source for LLM-augmented KG construction and KG completion: NER + relation extraction pipelines, distilling triplets directly from an LLM, and the joint / MLM / separated encoding variants for triplet validation. Backs the KG lifecycle section of graph-rag-patterns.md.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "LLMs on graph tasks — graph-task taxonomy and prompting survey (arXiv:2404.14809; verify exact title at source)",
+        "url": "https://arxiv.org/abs/2404.14809",
+        "type": "research",
+        "relevance": "Primary source for LLM-on-graph prompting methods (manual prompt, self-prompting, API-call prompts) and the finding that LLMs read node labels better than topological structure, with structural reasoning degrading as graph size and task complexity grow. Backs the serialization caveat and the raw-large-graph anti-pattern in graph-rag-patterns.md. Direction only - no magnitudes imported.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
       }
     ],
     "aws_native_rag": [

@@ -95,18 +95,18 @@ from vllm import LLM
 model = LLM(
     model="meta-llama/Llama-2-70b-hf",
     tensor_parallel_size=4,  # Split across 4 GPUs
-    dtype="float16"
+    dtype="bfloat16"  # bf16 is the default on A100+; fp16 only for pre-Ampere
 )
 ```
 
 **Performance characteristics**:
 - Communication: High (all-reduce after every layer)
-- Latency impact: Low (NVLink bandwidth ~600 GB/s)
+- Latency impact: Low inside an NVLink domain. Per-GPU NVLink bandwidth by generation, as of 2026-08 (verify current gen): A100/NVLink 3 = 600 GB/s, H100/NVLink 4 = 900 GB/s, B200/NVLink 5 = 1.8 TB/s
 - Scaling efficiency: 80-95% with NVLink
 
 **Hardware requirements**:
 - NVLink or NVSwitch for multi-GPU nodes
-- 600+ GB/s interconnect bandwidth recommended
+- An NVLink-class interconnect (600 GB/s on A100 and up); do not span TP across nodes. Inter-node InfiniBand is quoted in Gb/s — NDR 400 Gb/s = 50 GB/s per link, XDR 800 Gb/s = 100 GB/s — so convert to GB/s before comparing: that is roughly an 18× gap against H100 NVLink, not a 2× one
 - GPUs on same physical node preferred
 
 **Validation checklist**:
@@ -150,9 +150,9 @@ ds_config = {
 - Latency impact: Medium (pipeline fill/drain overhead)
 - Scaling efficiency: 60-75% (depends on bubble size)
 
-**Bubble calculation**:
+**Bubble calculation** (fraction of step time idle, matching `ai-distributed-training`):
 ```
-Bubble time = (num_stages - 1) / num_microbatches * stage_time
+Bubble fraction = (num_stages - 1) / (num_microbatches + num_stages - 1)
 ```
 
 **Validation checklist**:
@@ -249,16 +249,19 @@ resources:
 - All-gather for computation
 - Reduce-scatter for gradients (training)
 
-**Configuration example (PyTorch)**:
+**Configuration example (PyTorch, FSDP2)**:
 ```python
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+# FSDP2. The FSDP1 API (`FullyShardedDataParallel` + `ShardingStrategy`)
+# is deprecated as of PyTorch 2.11 — do not start there.
+from torch.distributed.fsdp import fully_shard, MixedPrecisionPolicy
 
-model = FSDP(
-    model,
-    sharding_strategy="FULL_SHARD",
-    cpu_offload=False
-)
+mp = MixedPrecisionPolicy(param_dtype=torch.bfloat16)
+for block in model.layers:          # shard each transformer block
+    fully_shard(block, mp_policy=mp)
+fully_shard(model, mp_policy=mp)     # shard the root module last
 ```
+
+`reshard_after_forward=True` (the default) is the ZeRO-3 equivalent; `False` is ZeRO-2-like. See [ai-distributed-training](../../ai-distributed-training/references/fsdp-vs-zero.md) for the full mapping — sharding is primarily a training concern and that skill owns it.
 
 **Validation checklist**:
 - [ ] Sharding strategy matches use case
@@ -312,7 +315,8 @@ Starting-point heuristics, not measured benchmarks — GPU count depends on prec
 | 13-70B | 4-8 | NVLink | TP=4-8 |
 | 70-175B | 8-16 | NVLink + IB | TP=8 + PP=2-4 |
 | >175B | 16+ | NVLink + IB | TP=8 + PP=4+ |
-| MoE (Mixtral) | 8+ | NVLink | TP=2-4 + EP=4-8 |
+| MoE, few large experts (Mixtral-class, 8 experts) | 8+ | NVLink | TP=2-4 + EP=4-8 |
+| MoE, many small experts (DeepSeek-V3 / Qwen3-MoE-class, 64-256 experts) | 16+ | NVLink + IB | Large EP, no TP — the DeepSeek-V3 design point (see `ai-distributed-training` on expert parallelism) |
 | High throughput | Any | Any | DP (multiple replicas) |
 
 ## Communication Overhead Analysis

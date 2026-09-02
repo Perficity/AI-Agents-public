@@ -26,7 +26,7 @@ Source: https://code.claude.com/docs/en/sub-agents
 - They work well when the lead only needs the result back.
 - They are the right default for focused workers that explore, triage, review, or modify exclusive files.
 - Subagents stay inside one session. If workers need to communicate with each other directly, use agent teams or cross-session messaging (Aug 2026, macOS/Linux) instead.
-- Since June 2026 subagents can spawn their own subagents; chains are capped at 5 levels. Keep assignments bounded anyway — the cap is a runaway backstop, not a design target.
+- Subagents can spawn their own subagents; the current default maximum is three layers below the main session and is configurable with `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`. Keep assignments bounded anyway — the cap is a runaway backstop, not a design target.
 
 Practical default:
 
@@ -37,7 +37,7 @@ Built-in subagents:
 
 | Subagent | Model | Tools | Purpose |
 |----------|-------|-------|---------|
-| Explore | Haiku | Read-only | File discovery, code search, codebase exploration |
+| Explore | Inherits parent model | Read-only | File discovery, code search, codebase exploration |
 | Plan | Inherits | Read-only | Codebase research during plan mode |
 | General-purpose | Inherits | All | Complex research, multi-step operations, code modifications |
 | statusline-setup | Sonnet | Read, Edit | Auto-invoked to configure the Claude Code status line — do not call directly |
@@ -70,7 +70,7 @@ Key frontmatter fields:
 | `mcpServers` | MCP servers scoped to this subagent (inline or reference) |
 | `hooks` | Lifecycle hooks: PreToolUse, PostToolUse, Stop |
 | `memory` | Persistent memory scope: `user`, `project`, or `local` |
-| `background` | Pins foreground vs background. Background is the default since ~2026-07 (v2.1.195+); set `false` for edit-capable workers |
+| `background` | Only `true` is documented: it forces background execution. Omitting the field does not guarantee foreground; current behavior also depends on whether agent-view fork mode is active |
 | `effort` | `low`, `medium`, `high`, `xhigh`, `max` (Opus only; `xhigh` is the new 4.7-era default — see [`../../agents-subagents/references/cost-control.md`](../../agents-subagents/references/cost-control.md) §"Opus 4.7 Cost Levers") |
 | `isolation` | `worktree` for git-worktree isolation |
 | `color` | UI color: red, blue, green, yellow, purple, orange, pink, cyan |
@@ -92,10 +92,12 @@ Invocation modes:
 
 Foreground vs background:
 
-Background is the **default** since ~July 2026 (v2.1.195+); set `background: false` in frontmatter to pin a worker to the foreground.
+Current behavior depends on the active mode:
 
-- **Foreground**: blocks main conversation; permission prompts pass through. Pin edit-capable workers here.
-- **Background** (default): runs concurrently; permissions pre-approved at launch, unapproved actions auto-denied. Ctrl+B backgrounds a running foreground task.
+- **Standard mode**: Claude chooses foreground when it needs the result and otherwise normally uses background execution.
+- **Agent-view fork mode**: all Claude-spawned subagents run in the background and the `run_in_background` argument is unavailable.
+- **Agent file**: `background: true` forces background execution. Omitting it leaves execution mode to the active runtime surface; there is no documented agent-file foreground override.
+- Permission requests from current background subagents surface in the main conversation. Ctrl+B can background a running foreground task.
 
 Resume: use `SendMessage` with the agent ID to continue a completed subagent with full prior context. Subagent transcripts persist independently of main conversation compaction.
 
@@ -141,6 +143,7 @@ Subagent definitions as teammates:
 - The teammate uses the definition's `tools` and `model`, with the body appended as additional instructions.
 - `skills` and `mcpServers` from the subagent definition are **not** applied to teammates. Teammates load these from project/user settings.
 - Team coordination tools (SendMessage, task tools) are always available even when the definition restricts `tools`.
+- Teammates share the lead checkout. They do not inherit worktree isolation from `isolation: worktree`; use disjoint file ownership or ordinary isolated subagents.
 
 Quality gate hooks:
 
@@ -200,15 +203,7 @@ Codex supports spawning specialized subagents in parallel, then collecting resul
 
 ### Concurrency configuration
 
-Settings under `[agents]` in configuration:
-
-| Parameter | Default | Purpose |
-|-----------|---------|---------|
-| `max_threads` | 6 | Concurrent open agent thread cap |
-| `max_depth` | 1 | Spawned agent nesting depth (prevents recursive fan-out) |
-| `job_max_runtime_seconds` | 1800 | Per-worker timeout for CSV batch jobs |
-
-Increasing `max_depth` beyond 1 risks repeated fan-out, which increases token usage, latency, and local resource consumption.
+Codex concurrency, recursion, and per-job timeout controls vary across CLI generations and experimental multi-agent surfaces. Inspect the active tool schema and current official configuration reference before using a native key. Do not present `max_threads`, `max_depth`, or `job_max_runtime_seconds` as universal settings; keep ordinary workers leaf-only and enforce run budgets in the orchestration contract when the runtime exposes no native control.
 
 ### Custom agent definition
 
@@ -246,7 +241,7 @@ Codex ships with defaults (overridable by custom agents with matching names):
 
 ### CSV batch processing (experimental)
 
-The `spawn_agents_on_csv` tool processes tabular work items — one worker per row. Each worker must call `report_agent_job_result` exactly once. Exported CSV includes original data plus `job_id`, `item_id`, `status`, `last_error`, `result_json`.
+When the active experimental surface exposes `spawn_agents_on_csv`, it can process tabular work items with one worker per row and a structured result callback. This tool is not guaranteed across Codex versions or execution surfaces: capability-check it before designing a batch flow, and fall back to an explicit bounded dispatch loop when absent.
 
 ## OpenAI Agents SDK
 

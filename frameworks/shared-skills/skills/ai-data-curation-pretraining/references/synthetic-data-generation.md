@@ -4,7 +4,9 @@ Canonical source: [ai-data-curation-pretraining/SKILL.md](../SKILL.md)
 
 ## Table of Contents
 
+- [Augmentation vs Synthesis](#augmentation-vs-synthesis)
 - [When to Use Synthetic Data](#when-to-use-synthetic-data)
+- [Rule-Based Synthesis (Faker, Chance)](#rule-based-synthesis-faker-chance)
 - [Phi / Textbooks Are All You Need Recipe](#phi--textbooks-are-all-you-need-recipe)
 - [Cosmopedia: Synthetic Textbooks at Scale](#cosmopedia-synthetic-textbooks-at-scale)
 - [Self-Instruct](#self-instruct)
@@ -18,6 +20,15 @@ Canonical source: [ai-data-curation-pretraining/SKILL.md](../SKILL.md)
 
 ---
 
+## Augmentation vs Synthesis
+
+Two different operations, often conflated (distinction per Chip Huyen, *AI Engineering*, O'Reilly 2025):
+
+- **Data augmentation** creates new examples *from existing real data* — paraphrasing/rephrasing (WRAP is augmentation at corpus scale), back-translation, perturbing tokens or fields, reformatting the same content for multiple audiences (the Cosmopedia style-diversity trick applied to real seeds). The real datum anchors correctness; augmentation buys coverage and robustness around it.
+- **Data synthesis** generates examples *from scratch* to mimic the properties of real data — model-generated textbooks (Phi, Cosmopedia), self-generated instructions (Self-Instruct), or rule-based fake records (next section). Nothing anchors correctness except your generator and your verifier gate.
+
+The practical consequence: augmented data inherits the license, PII exposure, and contamination status of its source — scrub and decontaminate the *source* first. Synthesized data has no source lineage to lean on, so the verifier gate (below) carries the entire quality burden.
+
 ## When to Use Synthetic Data
 
 Synthetic data addresses gaps that web crawls cannot fill:
@@ -26,6 +37,27 @@ Synthetic data addresses gaps that web crawls cannot fill:
 - **Quality ceiling**: web text quality is noisy; synthetic data from a strong generator can have higher average quality on a target skill.
 
 Synthetic data is **not** a replacement for diverse web data. It should always be mixed with human-sourced text.
+
+---
+
+## Rule-Based Synthesis (Faker, Chance)
+
+Not all synthesis needs a model. Procedural generators produce structured records from rules — deterministic, free, license-clean, and PII-safe by construction:
+
+- **Faker** — Python [`faker`](https://faker.readthedocs.io/) and JS [`@faker-js/faker`](https://fakerjs.dev/): locale-aware fake names, addresses, emails, companies, dates, financial fields. Seedable for reproducibility.
+- **Chance** — [chancejs.com](https://chancejs.com/): JS random generator for primitives, people, locations, times; lighter than Faker, same role.
+- Same family: language-specific ports (Bogus for .NET — already used in this repo's `qa-testing-nunit` templates) and schema-driven tabular tools.
+
+**Where they fit in an ML pipeline** (vs model-based generation above):
+
+| Use | Rule-based (Faker/Chance) | Model-based (Phi/Self-Instruct-class) |
+| --- | --- | --- |
+| PII-safe stand-ins — replace real names/emails in a corpus during the scrub stage | ✅ the right tool | ❌ overkill, may hallucinate real PII |
+| Structured/tabular records for format-following fine-tuning (JSON extraction, form parsing, NER on synthetic invoices) | ✅ generates the *fields*; pair with templates or an LLM for the surrounding text | Wraps the records in natural language |
+| Test fixtures and pipeline smoke tests at every curation stage | ✅ | ❌ |
+| Reasoning, prose, dialogue, domain knowledge | ❌ no semantics, only formats | ✅ this file's main subject |
+
+**The trap**: rule-based records have uniform, unrealistic *distributions* (Faker's names are flat samples, real names are Zipfian; field correlations are absent). Fine for format training and scrubbing; wrong for anything where the model should learn realistic distributions. Model collapse doesn't apply, but distribution mismatch does — validate on real held-out data.
 
 ---
 

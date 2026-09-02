@@ -1,11 +1,11 @@
 {
   "metadata": {
     "skill": "ai-pretraining",
-    "updated": "2026-07-11",
-    "audit_date": "2026-07-11",
-    "last_verified": "2026-07-11",
-    "last_updated": "2026-07-11",
-    "total_sources": 31,
+    "updated": "2026-08-29",
+    "audit_date": "2026-08-29",
+    "last_verified": "2026-08-29",
+    "last_updated": "2026-08-29",
+    "total_sources": 54,
     "title": "AI Pretraining From Scratch - Sources",
     "description": "Primary sources for building transformer/GPT and BPE tokenizer from first principles: Karpathy Zero-to-Hero series, nanoGPT, nanochat, minbpe, Raschka LLMs-from-scratch, foundational papers, modern-architecture papers (RoPE/RMSNorm/SwiGLU/GQA/FlashAttention), the modded-nanoGPT/Muon speedrun frontier, production Muon reports (Kimi K2 MuonClip, DeepSeek-V4, GLM-5), and PyTorch mixed-precision docs."
   },
@@ -293,6 +293,175 @@
         "relevance": "Replaced-token-detection fixes MLM's ~15%-token sample inefficiency; grounds the encoder-only limitation/workaround in the family contrast.",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "The Evolution of Mixture-of-Experts Architectures in LLMs: Routing, Topology, Load Balancing, and Expert Parallelism (Li, 2026)",
+        "url": "https://arxiv.org/abs/2608.08650",
+        "type": "research",
+        "relevance": "Five-axis MoE taxonomy (expert granularity, expert topology, routing freedom, scope of load balancing, execution structure) used to structure the MoE design-space table in section 5.",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "Tying the Loop: Tied Expert Layers in Mixture-of-Experts Language Models (Jaggi, 2026)",
+        "url": "https://arxiv.org/abs/2606.16825",
+        "type": "research",
+        "relevance": "Expert Tying shares expert parameters across consecutive transformer layers while keeping per-layer routing, cutting MoE memory ~2x; the topology-axis example in section 5.",
+        "access": "free",
+        "add_as_web_search": true
+      }
+    ],
+    "adaptive_depth_and_conditional_compute": [
+      {
+        "name": "Mixture-of-Depths: Dynamically allocating compute in transformer-based language models",
+        "url": "https://arxiv.org/abs/2404.02258",
+        "type": "research",
+        "relevance": "Defines top-k per-block token routing with a fixed capacity, the origin of the depth-axis conditional-compute vocabulary.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "LayerSkip: Enabling Early Exit Inference and Self-Speculative Decoding",
+        "url": "https://arxiv.org/abs/2404.16710",
+        "type": "research",
+        "relevance": "Layer-dropout plus early-exit-loss training recipe that makes early exit accurate, with self-speculative decoding for lossless speedup.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "TIDE: Token-Informed Depth Execution for Per-Token Early Exit in LLM Inference",
+        "url": "https://arxiv.org/abs/2603.21365",
+        "type": "research",
+        "relevance": "Post-training per-token early exit via tiny routers at checkpoint layers, requiring no retraining of the base model.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Universal Transformers",
+        "url": "https://arxiv.org/abs/1807.03819",
+        "type": "research",
+        "relevance": "Ancestor of looped transformers: recurrence in depth with an Adaptive Computation Time halting mechanism.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "ALBERT: A Lite BERT for Self-supervised Learning of Language Representations",
+        "url": "https://arxiv.org/abs/1909.11942",
+        "type": "research",
+        "relevance": "Cross-layer parameter sharing as a parameter-reduction technique, the cleanest early demonstration that depth-sharing costs little quality.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation",
+        "url": "https://arxiv.org/abs/2507.10524",
+        "type": "research",
+        "relevance": "NeurIPS 2025 synthesis unifying parameter sharing and adaptive token-level depth, with KV caching restricted to still-active tokens.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "AdaPonderLM: Gated Pondering Language Models with Token-Wise Adaptive Depth",
+        "url": "https://arxiv.org/abs/2603.01914",
+        "type": "research",
+        "relevance": "Monotonic halting mask plus KV reuse for halted tokens; shows learned halting beats fixed pruning under iso-FLOPs.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Depth-adaptive Inference of Looped Language Models via Continuous Depth Batching",
+        "url": "https://arxiv.org/abs/2608.09444",
+        "type": "research",
+        "relevance": "First end-to-end loop-level scheduler, showing the serving stack is part of the adaptive-depth architecture decision.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Do Language Models Use Their Depth Efficiently?",
+        "url": "https://arxiv.org/abs/2505.13898",
+        "type": "research",
+        "relevance": "NeurIPS 2025 residual-stream analysis finding second-half layers contribute much less, motivating where depth slack exists.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Modular Deep Learning",
+        "url": "https://arxiv.org/abs/2302.11529",
+        "type": "research",
+        "relevance": "Survey framing MoE, MoD, looped nets, and adapters as one modules-plus-routing design space.",
+        "last_verified": "2026-08-29"
+      }
+    ],
+    "structured_and_low_rank_parameterization": [
+      {
+        "name": "Monarch: Expressive Structured Matrices for Efficient and Accurate Training",
+        "url": "https://arxiv.org/abs/2204.00595",
+        "type": "research",
+        "relevance": "Defines Monarch as products of block-diagonal matrices with an analytical optimal dense-projection, the hardware-friendly answer to butterfly matrices.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "BLAST: Block-Level Adaptive Structured Matrices for Efficient Deep Neural Network Inference",
+        "url": "https://arxiv.org/abs/2410.21262",
+        "type": "research",
+        "relevance": "Block-level adaptive structure that learns which structural family fits, usable both as a training parameterization and as a compression target.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Building on Efficient Foundations: Effectively Training LLMs with Structured Feedforward Layers",
+        "url": "https://arxiv.org/abs/2406.16450",
+        "type": "research",
+        "relevance": "The from-scratch training study for structured FFNs up to 1.3B params, source of the self-guided training regime and the FLOP-scaling argument.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "SVD-LLM: Truncation-aware Singular Value Decomposition for Large Language Model Compression",
+        "url": "https://arxiv.org/abs/2403.07378",
+        "type": "research",
+        "relevance": "Truncation-aware data whitening plus a sequential low-rank parameter update, explaining why naive SVD truncation minimizes the wrong error.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "ASVD: Activation-aware Singular Value Decomposition for Compressing Large Language Models",
+        "url": "https://arxiv.org/abs/2312.05821",
+        "type": "research",
+        "relevance": "Training-free activation-aware weight transform with per-layer iterative calibration, the basis for the non-uniform-rank guidance.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Memory-Efficient Acceleration of Block Low-Rank Foundation Models on Resource Constrained GPUs",
+        "url": "https://arxiv.org/abs/2512.20861",
+        "type": "research",
+        "relevance": "Roofline evidence that block low-rank multi-token inference is memory-bound in PyTorch, and the Triton-kernel fix — the FLOPs-vs-wall-clock warning.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model",
+        "url": "https://arxiv.org/abs/2405.04434",
+        "type": "research",
+        "relevance": "MLA as the same low-rank factorization applied to the KV path, designed in rather than imposed post-hoc.",
+        "last_verified": "2026-08-29"
+      }
+    ],
+    "expert_panel_aug_2026": [
+      {
+        "name": "Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity",
+        "url": "https://arxiv.org/abs/2101.03961",
+        "type": "research",
+        "relevance": "Origin of the top-k/top-1 MoE router and the auxiliary load-balancing loss L_aux = alpha * N * sum_i f_i * P_i cited in section 5 of architecture-limitations-and-workarounds.md.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Auxiliary-Loss-Free Load Balancing Strategy for Mixture-of-Experts",
+        "url": "https://arxiv.org/abs/2408.15664",
+        "type": "research",
+        "relevance": "Bias-based load balancing (expert-wise bias on routing scores, selection only) adopted by DeepSeek-V3; the alternative to the auxiliary loss in the section 5 MoE failure-mode table.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "Toy Models of Superposition — Elhage et al., Anthropic Transformer Circuits Thread (2022)",
+        "url": "https://transformer-circuits.pub/2022/toy_model/index.html",
+        "type": "research",
+        "relevance": "Mechanism for why pretrained weight spectra are approximately full-rank: features are stored in overlapping non-orthogonal directions (superposition), so there is no small subspace to truncate. Explains why low-rank truncation of W degrades quality while low-rank updates do not.",
+        "last_verified": "2026-08-29"
+      },
+      {
+        "name": "LoRA: Low-Rank Adaptation of Large Language Models — Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, Chen",
+        "url": "https://arxiv.org/abs/2106.09685",
+        "type": "research",
+        "relevance": "The adaptation counterpart to low-rank compression: freezes dense W and learns a low-rank update. Cited in the structured-parameterization reference to separate constraining the update from compressing the weight; abstract reports an empirical investigation into rank-deficiency in language model adaptation.",
+        "last_verified": "2026-08-29"
       }
     ]
   }

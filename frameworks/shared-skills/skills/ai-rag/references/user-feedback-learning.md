@@ -15,6 +15,7 @@ Operational patterns for collecting user signals and improving search with feedb
 - [Pattern 3: Online Experimentation](#pattern-3-online-experimentation)
 - [Interleaving (Team Draft)](#interleaving-team-draft)
 - [Guardrails & Abort Criteria](#guardrails-&-abort-criteria)
+- [Exploration: Testing What You Never Show](#exploration-testing-what-you-never-show)
 - [Monitoring thresholds](#monitoring-thresholds)
 - [Pattern 4: Reranker Training with Feedback](#pattern-4-reranker-training-with-feedback)
 - [Training Loop](#training-loop)
@@ -30,6 +31,7 @@ Operational patterns for collecting user signals and improving search with feedb
 - [Eval Set Protection](#eval-set-protection)
 - [Filter eval set](#filter-eval-set)
 - [Feedback Learning Quality Checklist](#feedback-learning-quality-checklist)
+- [Cross-References](#cross-references)
 
 
 ## Overview
@@ -104,18 +106,42 @@ class SearchSignalLogger:
 - [ ] User opt-out respected
 - [ ] Aggregate-only analysis for sensitive queries
 
+The privacy checklist protects users from your logs. It does not protect your ranking
+model from your users — signals are a crowdsourced input and therefore an attack surface.
+Pair it with the Adversarial Signal Checklist in
+[`click-models-and-bias-correction.md`](click-models-and-bias-correction.md#adversarial-signal-checklist),
+whose central control is per-user deduplication at aggregation time.
+
+Note the ordering constraint this creates: dedup needs a stable per-user identity, so hash
+user IDs rather than dropping them. A fully anonymised signal stream cannot be defended
+against a single user voting thousands of times.
+
 ---
 
 ## Pattern 2: Label Generation
 
 ### Converting Signals to Labels
 
-**Graded relevance from signals:**
+**Use a click model, not a dwell-time heuristic.** The method is
+[`click-models-and-bias-correction.md`](click-models-and-bias-correction.md): SDBN
+examine-marking to strip position bias (Pattern CM-1), then a beta prior to stop sparse
+rows grading 1.0 (Pattern CM-2). That file is the implementation; this section covers
+only when a simpler heuristic is defensible and what it costs you.
+
+**Heuristic labelling (fallback only):**
 
 ```python
 def signal_to_label(interaction, result_position):
     """
-    Convert user interaction to relevance label (0-2)
+    Dwell-based relevance label (0-2). NOT position-bias corrected —
+    a click at rank 1 and a click at rank 9 are scored identically,
+    and an unclicked rank-1 result is graded the same as an unclicked
+    rank-5 result the user never scrolled to.
+
+    Defensible only for: cold start before session logs accumulate, or
+    surfaces with a single result per page (no ranked list, no position
+    bias to correct). Replace with SDBN as soon as you have per-session
+    rank + click data.
     """
     doc_id = interaction['doc_id']
 
@@ -138,6 +164,11 @@ def signal_to_label(interaction, result_position):
     # Default: unlabeled
     return None
 ```
+
+The `result_position <= 5` cutoff above is a stand-in for an examine: an admission that
+you cannot penalise a document the user never looked at. SDBN replaces that guess with
+a per-session determination — every result at or above the session's last click counts as
+examined — which is both more accurate and free of a magic constant.
 
 ### Hard Negative Sampling
 
@@ -164,8 +195,10 @@ def sample_hard_negatives(query, clicked_docs, all_results, k=5):
 **Checklist**
 - [ ] Signal → label mapping validated with human review
 - [ ] Hard negatives sampled from top-k results
-- [ ] Position bias corrected (clicks on top positions inflated)
-- [ ] Pairwise preferences extracted for learning-to-rank
+- [ ] Position bias corrected via SDBN examines, not a rank cutoff ([CM-1](click-models-and-bias-correction.md#pattern-cm-1-sdbn--correcting-position-bias-with-examines))
+- [ ] Confidence bias corrected via beta prior, so sparse rows cannot grade 1.0 ([CM-2](click-models-and-bias-correction.md#pattern-cm-2-beta-prior--correcting-confidence-bias))
+- [ ] Signals deduplicated per user before aggregation ([CM-4](click-models-and-bias-correction.md#pattern-cm-4-signal-spam-defence))
+- [ ] Pairwise preferences extracted for learning-to-rank ([learning-to-rank-pipeline.md](learning-to-rank-pipeline.md))
 
 ---
 
@@ -256,11 +289,36 @@ def should_abort_experiment(variant_metrics, baseline_metrics, guardrails):
     return False
 ```
 
+### Exploration: Testing What You Never Show
+
+Interleaving and A/B tests compare two rankings over the documents your system already
+surfaces. Neither can tell you anything about documents that have never been shown —
+those generate no clicks, so they never earn a rank, so they are never shown. That is
+**presentation bias**, and it is a coverage problem in the training data rather than a
+measurement problem in the experiment.
+
+Fixing it means deliberately showing results the current model would not have chosen, on
+a bounded slice of traffic, and feeding the resulting clicks back as judgments. Method and
+tuning — ad-hoc diversification versus Gaussian-process-driven candidate selection — are in
+[`click-models-and-bias-correction.md`](click-models-and-bias-correction.md#pattern-cm-3-exploration--correcting-presentation-bias)
+Pattern CM-3.
+
+Two operational notes for this file's scope:
+
+- Exploration is a live-traffic intervention that can degrade relevance for the users in
+  the slice. The guardrails and abort criteria above apply to it unchanged — wire it as an
+  experiment arm, not as an always-on ranking tweak.
+- Interleaving and exploration are complementary, not alternatives. Interleaving tells you
+  which of two rankings is better; exploration widens the set of documents either ranking
+  is able to consider next cycle.
+
 **Checklist**
 - [ ] Interleaving/bandit algorithm selected
 - [ ] Guardrails defined per metric
 - [ ] Auto-abort on critical regressions
 - [ ] Sample size calculated for statistical power
+- [ ] Exploration slice sized and bounded, under the same guardrails
+- [ ] Exploration clicks flow back into judgment generation, not just into metrics
 
 ---
 
@@ -436,3 +494,15 @@ clean_eval_set = [
 - [ ] Metrics dashboards live with alerting
 - [ ] Eval contamination checks automated
 - [ ] Runbooks for common failure modes
+- [ ] Judgments debiased before training (position, confidence, spam)
+- [ ] Exploration running so training data covers more than the current ranker shows
+
+---
+
+## Cross-References
+
+- [`click-models-and-bias-correction.md`](click-models-and-bias-correction.md) — the method behind Pattern 2's labels: SDBN examines, beta-prior confidence damping, exploration, and signal-spam defence.
+- [`learning-to-rank-pipeline.md`](learning-to-rank-pipeline.md) — the six-step pipeline that consumes these judgments; Pattern 3's guardrails gate its deployment step.
+- [`ranking-pipeline-guide.md`](ranking-pipeline-guide.md) — where a retrained reranker sits in the serving path.
+- [`confidence-scoring.md`](confidence-scoring.md) P-CS-5 — streaming per-element trust updates; contrast with Pattern 4's batch retraining.
+- [`search-evaluation-guide.md`](search-evaluation-guide.md) — offline metrics for judging a new model or judgment list.

@@ -37,6 +37,7 @@ Use this checklist before relying on telemetry for test or release decisions.
 - [ ] Tests emit correlation IDs on failure (request/trace IDs in logs)
 - [ ] Test runs are tagged (env, build SHA, suite, shard/worker)
 - [ ] Failure artifacts are stored and linked (logs/traces/screenshots)
+- [ ] Pull requests answer "How will I know if this change is working as intended or not?" before merge (instrumentation is part of the change, not a follow-up)
 
 ### Cost and Privacy Guardrails
 

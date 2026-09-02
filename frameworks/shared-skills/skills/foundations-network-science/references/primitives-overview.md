@@ -1,5 +1,5 @@
 ---
-description: Domain-agnostic overview of 11 network-science primitives with anti-patterns by domain.
+description: Domain-agnostic overview of 12 network-science primitives with anti-patterns by domain.
 last_verified: 2026-08-14
 status: stable
 ---
@@ -34,7 +34,7 @@ Each primitive in the index below addresses a specific structural or dynamic fai
 
 ## Primitive Index
 
-11 primitives, each in its own playbook under [`../assets/templates/network-science/`](../assets/templates/network-science/). The table includes primary domain applications.
+12 primitives, each in its own playbook under [`../assets/templates/network-science/`](../assets/templates/network-science/). The table includes primary domain applications.
 
 | # | Primitive | Failure Mode | Primary Domains |
 |---|-----------|-------------|-----------------|
@@ -49,6 +49,7 @@ Each primitive in the index below addresses a specific structural or dynamic fai
 | 9 | [Graph Clustering](../assets/templates/network-science/09-graph-clustering.md) | k-means on flat features misses graph cuts | Module detection, spectral partitioning, graph segmentation |
 | 10 | [Graph Embeddings](../assets/templates/network-science/10-graph-embeddings.md) | One-hot node encodings lose structural signal | Node classification, link prediction with ML, GNN pipelines |
 | 11 | [Temporal Networks](../assets/templates/network-science/11-temporal-networks.md) | Aggregated static graph loses causal ordering | Contact tracing, bursty communication, temporal reachability |
+| 12 | [Graph Schema Design](../assets/templates/network-science/12-graph-schema-design.md) | Structure chosen implicitly at ingest, then frozen as technical debt | Non-graph-to-graph migration, knowledge graphs, GNN pipeline design |
 
 ---
 

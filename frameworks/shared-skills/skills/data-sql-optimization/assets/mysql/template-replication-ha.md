@@ -58,6 +58,45 @@
 
 ---
 
+### 2.3 Topology Review — Discouraged Shapes and Capacity Rules
+
+*Source: Botros & Tinley, High Performance MySQL, 4th ed. (O'Reilly, 2021), Ch. 9. Two topologies cover nearly every use case: active/passive (all reads and writes to one source, a small number of passive replicas) and active/read pool (writes to the source, reads spread across a replica pool). Everything below is a deviation to justify or avoid.*
+
+#### Discouraged topologies checklist
+
+Tick any that describe the current or proposed topology. Each is a finding, not a neutral observation.
+
+- [ ] **Dual source in active-active mode** (bidirectional replication, writes to both sides). The book: "Active/active is very difficult to do correctly." Even/odd-hash write routing keeps read-after-write consistent per row, but "queries that include rows that are canonical on the other side may not be consistent" — a query spanning IDs 1–6 has no correct side to go to. Capacity is the second trap: "each server is the other server's replica and the most likely target of the failover. You have to plan your capacity in a way that ensures that when you shift traffic from one side to the other, you do not run out of CPU," and failover introduces a different working set so "the InnoDB buffer pool now churns, removing entries to make room for the new hot set of data." Verdict quoted: "Take our advice and stay away from this one... You'll end up introducing data inconsistencies into the application and always be on edge that you don't have enough capacity to failover. Once you lose your failover strategy, you've lost resilience."
+- [ ] **Dual source in active-passive mode** (one side read-only). Not dangerous, just pointless — it differs from plain active/passive only in that reverse replication is preconfigured, and "This only works in a two-server configuration. If you run more than two servers, you'll need to decide which node is the best target for a failover. Preconfiguring replication only ties you directly to one and doesn't give you flexibility in an outage situation." Setting up replication is an automatable failover step; this is "an unnecessary configuration that only invites confusion."
+- [ ] **Dual sources with replicas.** Resolves the capacity and buffer-pool-churn concerns but "maintains most of the problems with dual source in active-active, the most important being how you route traffic," and adds failover steps. "Cosources only lead to trouble."
+- [ ] **Ring / circular replication** (three or more sources, each a replica of the one before and source of the one after). "If any server in this topology goes offline, your topology is broken and updates stop flowing around the ring." Attached-replica variants still leave the ring broken until a replica is promoted into the gap. Verdict quoted: "This topology is the opposite of simple and has no advantages."
+- [ ] **Multisource replication as a permanent topology.** Legitimate as a temporary tool — merging two clusters into one via replication channels, then cutting over — but "We cite it as discouraged only in the case where you build a permanent topology around this concept." Known limitation: "you cannot configure a replica to use multisource replication multiple times against the same source."
+- [ ] **Writes to more than one server in the topology.** Stated as a flat rule: "Do not try to write to multiple servers in a replication topology at the same time. This includes using cosources with writes on both sides or ring replication. The most practical replication topology is to use one source, taking all your writes, and one or more replicas, optionally taking reads."
+
+**Star topology note.** A single source fanning out to many replicas is the recommended shape, not a discouraged one — but read-pool size is an operational cost, not just a capacity number: "A 16-node pool will mean that you have to do kernel updates or security patching 16 times. Automating this task to gracefully depool a node, perform patching, reboot, and repool will reduce the amount of work you do by hand in the future."
+
+#### Capacity rules
+
+- [ ] **n+2 redundancy on physical hardware.** Quoted: "In a physical hardware environment, you really want n+2 redundancy for at least three total servers. In the event of a hardware failure, you still have one additional server for failover. You can also use one of the replicas as a backup server if you are uncomfortable or unable to take backups on your source."
+- [ ] **n+1 acceptable in cloud, conditionally.** Quoted: "In a cloud environment, you can get away with n+1 redundancy for two total servers if your data is small enough or you can copy the data easily. Otherwise, n+2 is needed." If you take n+1, lean on dynamic provisioning for maintenance: provision a third replica on demand, patch it, replace the other replica, fail over, repeat on the former source. "The goal is to keep a replica ready to be the target of a failover at all times."
+- [ ] **Failover targets must match the source's configuration.** Active/passive assumes "the source and replicas are identical configurations in terms of CPU, memory, and so forth" so you can "sustain the traffic capacity and throughput as before you failed over." In a read pool, keep "at least one, preferably two" replicas at source-equivalent spec. Mixed-spec pools should be traffic-weighted: "If you have 32 cores for the failover targets and 8 cores for other replicas, try to send four times more traffic to the 32-core node to ensure you get utilization."
+- [ ] **50–60% CPU utilization ceiling per read-pool node.** Quoted: "With reads, your most likely indicator of utilization will be CPU, and as such, target somewhere between 50%–60% utilization per node in the pool. As CPU increases, it spends more time context switching between work and latency increases. Try to find the right balance between latency and utilization that meets your application expectations." This is a headroom rule, not a target to drive toward — the gap absorbs failover load and node failures.
+
+Current per-node read CPU: __________  |  Redundancy level (n+_): __________
+
+#### Semisynchronous replication caveat
+
+If `rpl_semi_sync` is enabled anywhere in this topology, record why. Semisync means every committed transaction "must be acknowledged as received by at least one replica" — acknowledging receipt into the relay log, "but not necessarily applied it to the local data" — and adds latency to every transaction.
+
+**The failure mode that matters: it degrades to asynchronous silently.** Quoted: "if no replicas acknowledge the transaction during the time frame, MySQL reverts to its standard asynchronous replication. It will not fail the transaction. This really helps illustrate that semisynchronous replication is not a tool to prevent data loss but rather a building block for a larger set of tooling that allows you to have more resilient failover."
+
+So the intuitive use case does not hold: you might expect semisync to stop a network-partitioned source from accepting writes its replicas never saw, but "that source will just revert back to asynchronous and keep accepting writes." The book's position: "we'd recommend not relying on this for any data integrity." If semisync is part of your RPO story, that story has a hole in it — either back it with tooling that fences the source, or restate the RPO.
+
+- [ ] Semisync enabled? If so, `rpl_semi_sync_source_wait_for_replica_count` = ______ (wider topologies may want 2–3 acknowledgments)
+- [ ] Documented what happens on degrade-to-async, and whether the stated RPO survives it
+
+---
+
 ## 3. Replication Lag Investigation
 
 ### 3.1 Postgres Metrics

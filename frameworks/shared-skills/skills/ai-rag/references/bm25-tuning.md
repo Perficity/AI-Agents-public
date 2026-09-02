@@ -61,6 +61,8 @@ Use LLM to:
 Expand this query with synonyms and key domain terms:
 <query>
 
+**Document expansion (Doc2Query)** is the index-side mirror of query expansion: generate the questions a document would answer and append them to the indexed text before BM25 (Nogueira et al., arXiv 1904.08375). It lifts lexical recall for vocabulary-mismatch queries without touching the query path; the cost is one generation per document at ingest, and hallucinated expansions add false matches — sample and audit them before indexing at scale.
+
 ---
 
 ### Step 4 — Parameter Tuning

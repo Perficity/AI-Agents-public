@@ -18,6 +18,7 @@ Last updated: 2026-07. Verify model releases and VRAM specs before quoting to us
 - [Throughput Estimates (tokens/sec, generation)](#throughput-estimates-tokenssec-generation)
 - [Selection Heuristic](#selection-heuristic)
 - [Local vs API: The Real Tradeoff](#local-vs-api-the-real-tradeoff)
+- [Local Training Is a Different Feasibility Question](#local-training-is-a-different-feasibility-question)
 
 ---
 
@@ -227,3 +228,27 @@ The honest comparison is rarely "quality" in isolation — it's total cost of ow
 - Engineering time for local ops (driver issues, quant regressions, model updates, capacity planning) costs more than the API bill would.
 
 **The trap to avoid in both directions:** "Local" is not automatically cheaper (hardware, power, and your own ops time are real costs) and "hosted API" is not automatically higher quality on your specific task (a well-evaluated small local model can beat a poorly-prompted frontier model on a narrow job). Decide with a real eval set and a real cost model, not vibes or vendor benchmarks.
+
+---
+
+## Local Training Is a Different Feasibility Question
+
+Everything above this section sizes **inference**. Do not carry those conclusions across to training or on-device adaptation: a device that runs a model comfortably may be nowhere near able to train or fine-tune it. Training amplifies every constraint dimension at once, and the amplification factors are not uniform — energy moves roughly an order of magnitude more than compute does.
+
+Reddi, *Machine Learning Systems* (Ch. 14, Table 14.1, 2025) quantifies the amplification from running a pre-trained model to adapting it locally. Quoting the table's ranges verbatim:
+
+| Constraint dimension | Inference | Training amplification |
+|----------------------|-----------|------------------------|
+| Memory Footprint | Model weights + single activation map | Weights + full activation cache + gradients + optimizer state — "3-5× increase; forces aggressive compression" |
+| Compute Operations | Forward pass only | Forward + backward + weight update — "2-3× increase; limits model complexity" |
+| Memory Bandwidth | Sequential weight reads | Bidirectional data flow for gradients — "5-10× increase; creates bottlenecks" |
+| Energy per Sample | Single inference operation | Multiple gradient steps with convergence — "10-50× increase; requires opportunistic scheduling" |
+
+**Conditions on these numbers — do not quote them stripped of these:**
+
+- The textbook states the factors "assume standard backpropagation without optimizations like gradient checkpointing." Gradient checkpointing explicitly trades compute for memory, so it moves the memory and compute figures in opposite directions; mixed-precision training reduces the bandwidth figure. A stack using either is not described by this table.
+- These are **order-of-magnitude planning figures, unsourced in the textbook** — Table 14.1 presents them without citing a measurement study or naming the model, hardware, or batch size they were derived from. Treat them as a sizing prior that tells you which constraint binds first, not as a benchmark result. Measure on your actual model and device before committing to a training deployment.
+
+**The durable point, independent of the exact multipliers:** local *inference* feasibility does not imply local *training* feasibility, and the binding constraint usually changes between the two. For inference, the question is almost always "do the weights fit in VRAM." For training, memory bandwidth (5-10×) and energy per sample (10-50×) amplify hardest, so the ceiling is often thermal or power budget rather than capacity — which is why on-device training tends to require opportunistic scheduling (train while charging, idle, and cool) rather than training on demand. On battery-powered or passively-cooled hardware, energy is the constraint that actually decides feasibility.
+
+For practical local adaptation, this is the argument for parameter-efficient methods: LoRA/QLoRA-style adapters shrink the gradient and optimizer-state share of the memory footprint, which is the component the table shows growing. See `references/adaptation-and-packaging.md` for the adaptation and packaging path.

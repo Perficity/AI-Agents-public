@@ -7,6 +7,7 @@
 - [pass@k and aggregation](#passk-and-aggregation)
 - [Quarantine, don't ignore](#quarantine-dont-ignore)
 - [Contamination vs leakage](#contamination-vs-leakage)
+- [System-benchmark hazards](#system-benchmark-hazards)
 - [Checklist](#checklist)
 
 ## Why eval flake is dangerous
@@ -74,6 +75,52 @@ Two distinct ways eval scores get inflated:
 Both produce the same failure: confident high scores that do not transfer to
 production.
 
+## System-benchmark hazards
+
+The sections above treat the model and judge as the instrument. When the
+benchmark measures a *system* — latency, throughput, energy, cost per request,
+on-device performance — the hardware and the room it sits in become part of the
+instrument too. Four hazards, all from the systems-benchmarking literature
+(Reddi, *Machine Learning Systems*, Ch. 12, 2025):
+
+- **The hardware lottery.** A model's measured success can reflect how well it
+  maps onto the dominant hardware rather than any intrinsic advantage. The
+  textbook cites Hooker (2021) for the concept and gives the canonical example:
+  the Transformer succeeded partly because its matrix multiplications match GPU
+  capabilities, while architectures that map poorly to GPUs stay underexplored.
+  The practical consequence: a model that is efficient on one GPU may be poor on
+  a CPU or a custom accelerator, so **a single-platform benchmark cannot tell you
+  whether you measured the model or the silicon.** Benchmark across the hardware
+  you will actually deploy on. Note this hazard is *unintentional* — distinct
+  from benchmark engineering, where a system is deliberately tuned to the test.
+
+- **Lab-to-deployment gap.** Benchmarks reward single-metric optimization
+  (speed, accuracy, throughput); real deployments balance power, cost,
+  robustness, and tail latency at once. Optimizing average-case benchmark
+  performance can silently neglect the tail-latency behavior that actually
+  determines user experience. A state-of-the-art score is not a deployment
+  decision.
+
+- **Environmental conditions are reproducibility variables.** Ambient
+  temperature (via thermal throttling), altitude and cooling efficiency,
+  background processes competing for resources, network conditions, and power
+  stability all move system-benchmark numbers. Treat them like seeds and
+  versions: control what you can, and **document what you cannot control** so a
+  reader can account for it. This is the systems analogue of the version-pinning
+  rule above — an unrecorded thermal state invalidates comparison to history
+  exactly as an unrecorded model version does.
+
+- **Unreported confidence intervals.** The textbook names this directly: CIs
+  around benchmark scores often go unreported, which obscures whether a measured
+  difference is a genuine improvement or measurement noise. Same rule as
+  `references/eval-statistics.md` — a difference without an interval is not a
+  result — but the noise source here is hardware and environment, not sampling.
+
+**Why this sits in this file:** these are reproducibility failures whose root
+cause is outside the model. An eval can have pinned seeds, pinned versions, and
+a clean held-out set and still be irreproducible because it ran on a throttling
+laptop, or unfalsifiable because it ran on one accelerator.
+
 ## Checklist
 
 - [ ] Judge temperature low; seeds and versions pinned and recorded (knowing seeds don't guarantee bitwise reproducibility, esp. via hosted APIs)
@@ -82,3 +129,6 @@ production.
 - [ ] Eval set checked for benchmark contamination
 - [ ] Tuning data held out from the eval set (no testset leakage)
 - [ ] Decoding params fixed across runs
+- [ ] For system/performance benchmarks: measured on the deployment hardware, not one platform (hardware lottery)
+- [ ] Environmental conditions (thermal state, background load) controlled or documented
+- [ ] Benchmark score differences reported with confidence intervals

@@ -2,8 +2,9 @@
   "metadata": {
     "title": "DevOps Platform - Sources",
     "description": "Primary docs and release sources for Kubernetes operations, IaC, GitOps, CI/CD, observability, incident response, platform engineering, and cloud-native ops",
-    "last_updated": "2026-07-11",
-    "skill": "ops-devops-platform"
+    "last_updated": "2026-08-24",
+    "skill": "ops-devops-platform",
+    "total_sources": 104
   },
   "kubernetes": [
     {
@@ -154,6 +155,20 @@
       "description": "Terragrunt release notes",
       "kind": "release",
       "add_as_web_search": true
+    },
+    {
+      "name": "Brikman, Terraform: Up & Running (3rd ed., 2022)",
+      "url": "https://www.terraformupandrunning.com/",
+      "description": "Ch3 state isolation via file layout vs workspaces and component splitting; Ch6 plaintext secrets in state and plan files; Ch9 testing rungs (static analysis, plan testing, unit/apply, e2e). Tool-comparison tables in Ch9 are dated Feb 2022 and are not carried into this skill.",
+      "kind": "reference",
+      "add_as_web_search": false
+    },
+    {
+      "name": "Morris, Infrastructure as Code (2nd ed., 2020)",
+      "url": "https://infrastructure-as-code.com/book/",
+      "description": "Ch5 stack sizing taxonomy and blast radius (pp.56-63); Ch8 progressive testing, infrastructure test diamond, Swiss cheese model (pp.110,115-119); Ch12 apply-on-change antipattern (pp.192-193); Ch20 automation lag and continuous apply (pp.349-351).",
+      "kind": "reference",
+      "add_as_web_search": false
     }
   ],
   "cloud_architecture_frameworks": [
@@ -470,6 +485,13 @@
       "kind": "guide",
       "add_as_web_search": true,
       "optional": true
+    },
+    {
+      "name": "Beyer et al., Site Reliability Engineering (O'Reilly, 2016)",
+      "url": "https://sre.google/sre-book/table-of-contents/",
+      "description": "Ch27 'Reliable Product Launches at Scale' - Launch Coordination Engineering, and the checklist-curation rule that every item's importance be substantiated by a previous launch disaster.",
+      "kind": "reference",
+      "add_as_web_search": false
     }
   ],
   "security_and_supply_chain": [
@@ -644,6 +666,13 @@
       "description": "Kratix release notes",
       "kind": "release",
       "add_as_web_search": true
+    },
+    {
+      "name": "Skelton & Pais, Team Topologies (2nd ed., 2025)",
+      "url": "https://teamtopologies.com/book",
+      "description": "Weis four-cluster cognitive-load model (20+ drivers), the Teamperature assessment instrument, the river-vs-bucket framing of load, and the Creditas case on leadership cognitive load rising during transformation.",
+      "kind": "reference",
+      "add_as_web_search": false
     }
   ],
   "finops_and_cost": [

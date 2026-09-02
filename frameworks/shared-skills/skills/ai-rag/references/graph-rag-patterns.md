@@ -20,10 +20,13 @@ Use this pattern when questions require relationship traversal or aggregation. V
 - [Routing Rule: Graph First vs Hybrid First](#routing-rule-graph-first-vs-hybrid-first)
 - [Quick Reference: Graph RAG vs Vector RAG](#quick-reference-graph-rag-vs-vector-rag)
 - [Operational Patterns](#operational-patterns)
+- [KG Lifecycle and Quality Dimensions](#kg-lifecycle-and-quality-dimensions)
+- [Retrieval-Granularity Ladder](#retrieval-granularity-ladder)
 - [Pattern 1: Knowledge Graph Construction](#pattern-1-knowledge-graph-construction)
 - [Step 1: Entity and relationship extraction via LLM](#step-1-entity-and-relationship-extraction-via-llm)
 - [Step 2: Entity resolution (deduplicate)](#step-2-entity-resolution-deduplicate)
 - [Step 3: Store in Neo4j](#step-3-store-in-neo4j)
+- [Pattern 1b: Semantic Knowledge Graph — Construction with No LLM](#pattern-1b-semantic-knowledge-graph--construction-with-no-llm)
 - [Pattern 2: LazyGraphRAG — Default Starting Point for Graph-Augmented Retrieval](#pattern-2-lazygraphrag--default-starting-point-for-graph-augmented-retrieval)
 - [Pattern 3: Microsoft GraphRAG (Community Summaries)](#pattern-3-microsoft-graphrag-community-summaries)
 - [Step 1: Initialize](#step-1-initialize)
@@ -33,6 +36,7 @@ Use this pattern when questions require relationship traversal or aggregation. V
 - [Pattern 4: Hybrid Graph + Vector Retrieval](#pattern-4-hybrid-graph-vector-retrieval)
 - [Pattern 5: Entity-Aware Chunking](#pattern-5-entity-aware-chunking)
 - [Pattern 6: Subgraph Context Packing](#pattern-6-subgraph-context-packing)
+- [Context Packing Formats: Graph-to-LLM Serialization](#context-packing-formats-graph-to-llm-serialization)
 - [Pattern 7: Graph Maintenance and Updates](#pattern-7-graph-maintenance-and-updates)
 - [Anti-Patterns](#anti-patterns)
 - [Validation Checklist](#validation-checklist)
@@ -111,6 +115,94 @@ source text and citations. Do not force every query through GraphRAG.
 | Latency | Low (~100ms) | Medium (~500ms) | Medium (~500ms) |
 | Corpus < 1000 docs | Sufficient | Over-engineered | Over-engineered |
 | Corpus > 10000 docs | Degrades | Scales well | Best |
+
+---
+
+## KG Lifecycle and Quality Dimensions
+
+Pattern 1 below builds the graph. This section is the lifecycle that surrounds it:
+building the graph is stage one of five, and the three middle stages are a loop,
+not a one-time pass.
+
+```
+creation ──▶ ┌─ assessment ⇄ cleaning ⇄ enrichment ─┐ ──▶ deployment
+             └────── knowledge curation loop ───────┘
+```
+
+- **Creation** — define purpose and ontology first, then extract triplets (NER + relation extraction). Pattern 1 is this stage.
+- **Assessment** — measure quality against the dimensions below before anything downstream trusts the graph.
+- **Cleaning** — detect and correct errors (taxonomy and detection ladder below).
+- **Enrichment** — KG completion: fill gaps, merge additional sources, re-run entity resolution. Heterogeneous sources make resolution *more* load-bearing, not less.
+- **Deployment** — host and serve, with update, conflict, deletion, and access pipelines already designed. Deployment is not the end of the lifecycle; a deployed KG without an update pipeline goes stale by default.
+
+**Quality dimensions to assess** (each needs a named owner and a measurement, or it is not being assessed):
+
+| Dimension | What it asks | Failure it catches |
+|---|---|---|
+| Syntactic accuracy | Are triplets well-formed against the schema? | Malformed types, bad literals |
+| Semantic accuracy | Are the asserted facts true? | Plausible-looking wrong edges |
+| Completeness | Does the graph contain the entities/relations the domain needs? | Silent coverage gaps — compare against a golden-standard KG where one exists |
+| Conciseness | Is knowledge expressed without redundancy? | Blank-node proliferation (anonymous/unnamed nodes generated during creation) bloating the graph |
+| Timeliness | How stale is the graph, and on what cadence does it refresh? | Confidently answering from outdated facts |
+| Accessibility | Can it actually be queried, manipulated, and updated in practice? | A correct graph nobody can use |
+| Human interpretability | Can a person read and audit the representation? | Ungovernable graphs — ties to the transparency requirement |
+| Security, privacy, traceability | Who can access it, and which source did each fact come from? | No deletion path for a user's data; no way to correct a bad source. Source tracking is the mechanism that makes record deletion (GDPR-style) possible at all |
+
+Traceability is the one dimension that is cheap at creation time and near-impossible
+to retrofit: tag every node and edge with its source at write time (see Pattern 7).
+
+**Error taxonomy for cleaning:**
+
+| Error class | Example |
+|---|---|
+| Syntactic | Malformed entity or relationship |
+| Ontology-related | Assigned to a nonexistent ontology, wrong ontology, wrong property |
+| Semantic | Fact is well-formed and ontologically valid but wrong |
+| Source-inherited | The source document itself was wrong; the extraction faithfully copied the error |
+
+**Detection ladder** — run cheapest first, escalate only for what survives:
+
+1. **Statistical** — probabilistic outlier detection over the graph. Cheapest, catches gross anomalies.
+2. **ML models** — learned variants of the same. Better recall; accuracy is still limited.
+3. **Ontology / logical-rule reasoning** — exploit the ontology to derive contradictions (an instance cannot be both a Person and a Place). Precise where the ontology is expressive.
+4. **LLM fact-check of individual triplets** — an LLM verifies a single triplet against its own knowledge (e.g. flagging `(Vienna, CapitalOf, Hungary)`). Most expensive per triplet; reserve for what the earlier rungs surfaced, and treat its verdicts as candidates for review rather than as ground truth.
+
+Primary sources for the LLM-KG construction and completion framing:
+[arXiv:2306.08302](https://arxiv.org/abs/2306.08302) (unifying LLMs and knowledge
+graphs). Book treatment: Raieli & Iuculano, *Building AI Agents with LLMs, RAG,
+and Knowledge Graphs* (Packt, 2025), Ch. 7.
+
+---
+
+## Retrieval-Granularity Ladder
+
+In vector RAG, retrieval granularity is set by chunk size. **GraphRAG has no
+chunks — it replaces chunk-size tuning with a granularity choice.** This is the
+knob to reach for when graph context is too thin or too noisy; tuning the
+chunker is not.
+
+| Granularity | What is returned | Use when |
+|---|---|---|
+| **Nodes** | Individual entities plus their properties | Targeted attribute lookup ("what is X's founding year?") |
+| **Triplets** | Entities *and* their relationships | The relationship itself is the answer |
+| **Paths** | A chain of nodes and edges from X to Y | Connection and multi-hop questions |
+| **Subgraphs** | A connected region of the KG | Complex patterns and dependencies among several entities |
+| **Hybrid / adaptive** | Several granularities at once, or chosen per query | Mixed query distribution — the production default once simple retrieval passes eval |
+
+**Rule: adapt granularity to query complexity.** Simple queries are answered at
+low granularity; complex queries benefit from higher. Over-retrieving saturates
+the context with irrelevant elements and degrades generation — the same
+redundant-context failure that GraphRAG was meant to fix. Path retrieval needs a
+bound (shortest path, explicit rules, or a learned selector) because the number
+of paths between two entities grows sharply with graph size.
+
+This ladder governs *what to retrieve*; [Pattern 6](#pattern-6-subgraph-context-packing)
+and the serialization formats after it govern *how to render it*. Pick the rung
+first, then the format.
+
+Primary source: [arXiv:2408.08921](https://arxiv.org/abs/2408.08921) (GraphRAG
+survey — G-indexing / G-retrieval / G-generation, retrieval granularity, and
+graph formats).
 
 ---
 
@@ -201,6 +293,73 @@ def store_in_neo4j(graph, entities, relationships, source_doc):
             'properties': rel.get('properties', {}),
         })
 ```
+
+### Pattern 1b: Semantic Knowledge Graph — Construction with No LLM
+
+**Use when** you want relatedness between terms/entities and you already have an inverted index. This is the cheap alternative to Pattern 1: no extraction pass, no LLM, no separate graph store.
+
+Source: Grainger, Turnbull & Irwin, *AI-Powered Search* (Manning, 2025) §5.4; originally Grainger et al., "The Semantic Knowledge Graph: A compact, auto-generated model for real-time traversal and ranking of any relationship within a domain," *2016 IEEE International Conference on Data Science and Advanced Analytics (DSAA)*, pp. 420–429.
+
+**The core idea.** Pattern 1 *builds* a graph by extracting entities and edges into storage. A semantic knowledge graph (SKG) doesn't build anything — the graph is already latent in the inverted index, as the co-occurrence structure of terms across documents. Traversal is a query. The book describes it as a search engine that, instead of matching and ranking documents, finds and ranks *terms* that best match a query.
+
+Indexed over a health corpus, querying `advil` returns conceptually related terms with relatedness scores — the book's example output:
+
+```text
+advil     0.71
+motrin    0.60
+aleve     0.47
+ibuprofen 0.38
+alleve    0.37
+```
+
+These behave like "dynamic synonyms" — not same-meaning terms, but conceptually related ones, including the misspelling `alleve`, which no curated synonym list would have contained.
+
+**How relatedness is scored.** Compare a foreground document set against a background set:
+
+- `Dx` — documents matching the query `x` whose relatedness is being scored.
+- `Dfg` — documents matching the **foreground** query. Relatedness of `x` is computed relative to this set.
+- `Dbg` — documents matching the **background** query. Should be uncorrelated with `x` and `fg`, and is usually the entire collection or a random sample of it.
+- `Px` — the probability of finding `x` in a random document in the background set.
+
+The calculation is **conceptually similar to a z-score in a normal distribution**: it statistically compares the distribution of term `x` between the two sets. With foreground = documents matching `pain` and background = all documents, the relatedness of `advil` measures how much more often `advil` occurs in documents also containing `pain` than in a random document.
+
+Scores are normally passed through a sigmoid to the range **−1.0 to 1.0**:
+
+- Highly related terms → positive, approaching 1.0
+- Highly unrelated terms (occurring only in divergent domains) → closer to −1.0
+- Terms not semantically related at all, such as stop words → close to 0.0
+
+That last property is what makes the method work without a stopword list. Stop words co-occur heavily with everything, so their foreground distribution matches their background distribution and the score collapses toward zero — they are filtered by the statistics rather than by a curated list.
+
+**Implementation.** Apache Solr has SKG capabilities built into its faceting API: faceting traverses terms → document sets → terms, and the `relatedness` aggregation function implements the comparison.
+
+```python
+# Solr JSON facet: rank terms in `body` by relatedness to the foreground set
+{"facet": {
+    "related_terms": {
+        "type": "terms",
+        "field": "body",
+        "limit": 10,
+        "min_count": 2,          # exclude rare terms — noise reduction
+        "sort": {"relatedness": "desc"},
+        "facet": {"relatedness": {
+            "type": "func",
+            "func": "relatedness($fore,$back)"}}}}}
+```
+
+On engines without a native relatedness function, the same computation runs off term-document frequencies you can already retrieve — foreground count, background count, and collection size per candidate term.
+
+**Traversal.** An SKG is not limited to one hop or one field. It can traverse *between* fields ("find the skills most related to this job title"), traverse multiple levels deep ("find the job titles most related to this query, then the skills most related to each of those"), and use any arbitrary engine query as a node in the traversal.
+
+**Use cases the book names:** query expansion, content-based recommendations, query classification, query disambiguation, anomaly detection, data cleansing, predictive analytics.
+
+**Corpus requirement — the real constraint.** An SKG needs term co-occurrence across many documents. The book is explicit that **Wikipedia is a poor dataset** for this: it tends to have a single authoritative page per major topic, so there is little cross-document overlap. Good corpora are user-submitted content with repeated overlapping vocabulary — forum posts, questions, job postings, reviews, social posts. A corpus of unique, non-overlapping documents produces a weak graph regardless of size.
+
+**Why this matters more in 2026, not less.** Pattern 1's per-document LLM extraction pass is the dominant cost of a graph layer and the dominant source of its latency and its extraction errors. An SKG has none: construction cost is zero beyond the index you already maintain, traversal is a query at query latency, and there is no extraction step to hallucinate an edge. Where relatedness is the relationship you actually need, this is strictly cheaper.
+
+**Where it does not substitute for Pattern 1.** An SKG gives you *statistical relatedness between terms*, not typed entities with typed edges. It cannot tell you that Alice `REPORTS_TO` Bob — only that "Alice" and "Bob" co-occur unusually often. Multi-hop questions requiring edge semantics, provenance per edge, or graph constraints still need an extracted graph.
+
+**Decision rule:** if the query is "what is related to X" → SKG. If the query is "what is the *relationship* between X and Y", or answering requires traversing typed edges → Pattern 1. Running both is reasonable: SKG for query expansion at retrieval time, an extracted graph for relationship traversal.
 
 ### Pattern 2: LazyGraphRAG — Default Starting Point for Graph-Augmented Retrieval
 
@@ -424,6 +583,39 @@ def pack_subgraph_context(entities, relationships, max_tokens=2000):
 | Structured JSON | Medium | Good (with instruction) | API-based pipelines |
 | Cypher-style text | High | Moderate | Technical users |
 
+### Context Packing Formats: Graph-to-LLM Serialization
+
+The table above compares the formats most teams reach for first. The survey
+literature describes a wider set of *graph translators* — converters that turn a
+retrieved node, path, or subgraph into something an LLM ingests well. A graph is
+non-Euclidean; text is a sequence. Every format below is a lossy projection, and
+which loss you accept is the design decision.
+
+| Format | What it is | Preserves | Costs |
+|---|---|---|---|
+| **Adjacency / edge table** | The node and edge set as a table | Relational structure compactly | Reads as data, not prose; needs an explicit instruction |
+| **Natural-language templating** | Templates that render a subgraph as descriptive sentences, optionally labelling 1-hop vs 2-hop neighbours | Congenial to the LLM; hop distance can be made explicit | Verbose; template design is real work. An LLM can do the conversion instead, at extra cost and one more hallucination surface |
+| **Node sequence** | Nodes emitted in a predetermined order | Very compact; conveys ordering | Drops most edge information |
+| **Code-like forms** (GraphML, GML) | A standard graph markup language | Designed for graphs; structural + textual hybrid | Token-heavy; assumes the model has seen the format |
+| **Syntax tree** | The graph flattened into a hierarchy | Hierarchical structure and topological order | Only faithful where the region is tree-shaped |
+
+**The tradeoff, stated plainly:** the conversion must be *concise*, *complete*,
+and *understandable to the LLM* at the same time — and optimally should also
+carry the structural information. No format maximizes all of these. Choose which
+one to sacrifice deliberately per query shape rather than defaulting to whatever
+the driver emits.
+
+**Caveat that shapes the choice:** studies of LLM graph understanding report that
+models understand graphs presented in linear form and read **node labels better
+than topological structure**. So label-rich, structure-light formats
+(natural-language templating, node sequence) tend to outperform
+structure-faithful but label-sparse ones — which is the opposite of what a graph
+engineer's intuition suggests. Verify on your own eval before committing.
+
+Primary sources: [arXiv:2408.08921](https://arxiv.org/abs/2408.08921) (graph
+formats for G-generation); [arXiv:2404.14809](https://arxiv.org/abs/2404.14809)
+(graph-task taxonomy and prompting methods for LLMs on graphs).
+
 ### Pattern 7: Graph Maintenance and Updates
 
 - **Use when:** Keeping knowledge graph fresh as documents change
@@ -512,6 +704,8 @@ See also: [`../../router-engineering/references/engineering-scenarios.md#j2-buil
 | Using graph RAG without vector fallback | Misses entities not in graph | Always combine with vector search (hybrid) |
 | Manual ontology for >50 entity types | Unsustainable maintenance | LLM-driven extraction with constrained output schema |
 | Community summaries at wrong granularity | Too coarse = vague; too fine = redundant | Tune Leiden resolution parameter, evaluate summary quality |
+| Handing a large raw graph to the LLM and expecting topological reasoning | LLM structural reasoning degrades as graph size and task complexity increase; models read node labels better than topology | Retrieve a bounded region first (granularity ladder), then serialize label-rich — do not delegate traversal to the model |
+| Routing abstractive or entity-free questions through GraphRAG | The literature's own concession: GraphRAG underperforms on abstractive QA and when the question names no explicit entity; text nuance is lost in the graph projection | Detect entity-free/abstractive queries at routing time and send them to hybrid vector retrieval instead |
 
 ---
 

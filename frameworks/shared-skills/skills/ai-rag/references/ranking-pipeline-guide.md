@@ -63,6 +63,7 @@ Options:
 - Cross-encoder (ms-marco variants)  
 - MonoT5  
 - LLM reranker  
+- Reasoning reranker (test-time compute) — see below  
 
 Rerank top K candidates (20–100).  
 Output 5–20 best items.
@@ -97,6 +98,10 @@ It reaches this BEIR score while **outperforming Qwen3-Reranker-4B at ~6× small
 > Thank you to arXiv for use of its open access interoperability.
 
 ---
+
+### Reasoning rerankers — when a score alone is not enough
+
+Rank1 (Weller et al., arXiv 2502.18418) distils reasoning-model traces into a reranker that "thinks" before scoring, returning an explainable chain alongside the relevance judgement. Treat it as a fourth tier above cross-encoder and listwise LLM reranking: it earns its latency (an order of magnitude above a cross-encoder — measure on your hardware) only on queries where relevance depends on multi-step inference, negation, or instruction-following, and where the reasoning trace itself is a product feature (audit, citation justification). Do not put it on the hot path for lookup-style queries; gate it behind a query classifier or use it offline to label training data for a cheaper reranker.
 
 ## 6. Logging for Ranking Pipeline
 

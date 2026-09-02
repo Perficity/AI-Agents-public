@@ -20,12 +20,16 @@
 - [Pattern: Guarded Tool Call](#pattern-guarded-tool-call)
 - [5. Tool Selection Rules](#5-tool-selection-rules)
 - [Pattern: Intent → Tool Choice](#pattern-intent-→-tool-choice)
+- [5A. Tool Selection At Scale](#5a-tool-selection-at-scale)
+- [The Three Strategies](#the-three-strategies)
+- [Escalation Gate: Do Not Decompose Into Agents Yet](#escalation-gate-do-not-decompose-into-agents-yet)
 - [6. Tool Output Validation](#6-tool-output-validation)
 - [Pattern: Structured Output Check](#pattern-structured-output-check)
 - [7. Error Handling Patterns](#7-error-handling-patterns)
 - [Pattern: Typed Error Handling](#pattern-typed-error-handling)
 - [8. Tool Composition Pattern](#8-tool-composition-pattern)
 - [When chaining tools](#when-chaining-tools)
+- [Topology Ladder: Bound Every Rung](#topology-ladder-bound-every-rung)
 - [9. MCP Tool Design](#9-mcp-tool-design)
 - [MCP Tool Structure](#mcp-tool-structure)
 - [MCP-Specific Rules](#mcp-specific-rules)
@@ -250,6 +254,59 @@ Does the step require computation?
 
 ---
 
+# 5A. Tool Selection At Scale
+
+Section 5 assumes every tool definition fits in the prompt. That assumption breaks
+as the catalog grows: selection accuracy degrades as the number of candidate tools
+increases, and semantically overlapping descriptions become the dominant source of
+misselection. Pick a selection strategy by tool count and description overlap, not
+by framework. (Albada, *Building Applications with AI Agents*, O'Reilly 2025, Ch. 5.)
+
+### The Three Strategies
+
+| Strategy | How it works | Choose it when | Cost of choosing it |
+| -------- | ------------ | -------------- | ------------------- |
+| **Standard** | All tool definitions go in the prompt; the model picks one | Small toolsets; you want zero extra infrastructure | Scales poorly as tool count rises; description overlap drives misselection |
+| **Semantic** | Tool descriptions are embedded into a vector index ahead of time; at runtime the query is embedded and the top-k tools are retrieved and passed to the model | **Default at scale.** Most use cases; large toolsets where latency matters | Semantic collisions between similar descriptions can make accuracy *worse* than standard |
+| **Hierarchical** | Two stages: select a tool *group* (each group carries its own description), then select a tool within that group | Large tool counts **and** many semantically similar tools, where accuracy outranks latency | Extra sequential model call per selection; groups must be authored and maintained by hand |
+
+Decision rule:
+
+```text
+Do all tool definitions fit comfortably in the prompt?
+→ Yes → standard selection; invest in description quality first
+→ No  → semantic retrieval (default)
+        → still misselecting because tools are semantically similar?
+          → hierarchical grouping, accepting the added latency
+```
+
+Hierarchical selection is not recommended unless the tool count is genuinely large —
+authoring and maintaining the groups is ongoing work, and the second stage costs a
+sequential model call that is expensive to parallelize away.
+
+**Description engineering comes first.** At any scale, the cheapest accuracy gain is
+in the tool definitions themselves: a specific name over a generic one
+(`calculate_sum`, not `process_numbers`), a one-sentence summary of the tool's
+*unique* purpose, an example invocation, and explicit input types and ranges so the
+model can rule tools out. Retrieval infrastructure does not rescue overlapping
+descriptions — semantic collisions are exactly the failure mode it introduces.
+
+### Escalation Gate: Do Not Decompose Into Agents Yet
+
+Degrading tool selection is the most common trigger for splitting one agent into
+many. It is usually the wrong first move. Before decomposing, exhaust the
+single-agent options above — group tools hierarchically, or retrieve them
+semantically from a vector index. Decompose into distinct agents only if those
+still fall short, and price in the coordination overhead when you do.
+(Albada, O'Reilly 2025, Ch. 8.)
+
+This is the concrete, tool-count-driven form of the skill's general anti-multi-agent
+posture. See `SKILL.md` → *Known Traps* (multi-agent topologies before single-agent
+failure modes are understood) and [`multi-agent-patterns.md`](multi-agent-patterns.md)
+for the handoff contracts required once decomposition is actually justified.
+
+---
+
 # 6. Tool Output Validation
 
 ### Pattern: Structured Output Check
@@ -324,6 +381,23 @@ tool_B(params_2)
 
 - AVOID: Long unbroken tool chains (>3).  
 - AVOID: Using tool output as-is without validation.  
+
+### Topology Ladder: Bound Every Rung
+
+Climb from single tool → parallel → chain → graph only when the current rung
+genuinely cannot express the task, and bound each rung explicitly:
+
+- **Chains** must have a **maximum length**. Errors compound down the length of a
+  chain, so an unbounded chain converts one bad step into a bad result.
+- **Graphs** multiply foundation-model calls relative to chains — adding latency and
+  cost — so **cap depth and branching factor**. Graphs also admit error classes
+  chains do not: cycles, unreachable nodes, and conflicting state merges. Adopt a
+  graph only when you must both branch *and* later consolidate; every added node or
+  edge multiplies execution paths and error modes.
+
+(Albada, O'Reilly 2025, Ch. 5.) For which *kind* of graph a problem calls for
+before picking a runtime, see
+[`graph-and-loop-engineering.md`](graph-and-loop-engineering.md).
 
 ---
 

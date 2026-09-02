@@ -1,15 +1,107 @@
 {
   "metadata": {
     "skill": "ai-evals",
-    "updated": "2026-07-11",
-    "total_sources": 65,
-    "description": "Primary-source catalog for LLM/agent evaluation and optimization methodology: LLM-as-judge reliability/bias and advanced judging (juries, fine-tuned judges, calibration), eval frameworks, threshold calibration, eval statistics, fine-tuning decision loops (SFT, RFT, graders, PEFT/LoRA/QLoRA, preference tuning), test-time compute, data construction, distillation, online/production eval, safety/red-team eval, and reproducibility/contamination. Verify framework and fine-tuning APIs against official docs before recommending a specific call.",
-    "version": "1.3",
+    "updated": "2026-08-24",
+    "total_sources": 84,
+    "description": "Primary-source catalog for LLM/agent, responsible-AI, and multimodal evaluation: judge reliability, fairness/privacy/oversight evidence, grounding and multimodal red teaming, threshold calibration, eval statistics, optimization and fine-tuning loops, online evaluation, safety, and reproducibility. Verify framework and fine-tuning APIs against official docs before recommending a specific call.",
+    "version": "1.5",
     "title": "AI Evals - Sources",
-    "last_updated": "2026-07-11",
-    "last_validated": "2026-07-11"
+    "last_updated": "2026-08-24",
+    "last_validated": "2026-08-24"
   },
   "categories": {
+    "responsible_multimodal_evaluation": [
+      {
+        "name": "NIST AI RMF Core",
+        "url": "https://airc.nist.gov/airmf-resources/airmf/5-sec-core/",
+        "type": "specification",
+        "relevance": "Official measurement outcomes for fairness, privacy, environmental impact, oversight, feedback, and appeals.",
+        "update_frequency": "continuous",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "NIST AI 600-1 Generative AI Profile",
+        "url": "https://doi.org/10.6028/NIST.AI.600-1",
+        "type": "specification",
+        "relevance": "Official GenAI risk profile covering measurement and red-team considerations including privacy, harmful bias, content provenance, and environmental impacts.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Fairness and Abstraction in Sociotechnical Systems",
+        "url": "https://doi.org/10.1145/3287560.3287598",
+        "type": "research",
+        "relevance": "Primary source for evaluating fairness within the correct sociotechnical boundary.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "The Algorithmic Foundations of Differential Privacy",
+        "url": "https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf",
+        "type": "book",
+        "relevance": "Foundational source for privacy accounting, composition, and utility trade-offs.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Extracting Training Data from Large Language Models",
+        "url": "https://arxiv.org/abs/2012.07805",
+        "type": "research",
+        "relevance": "Primary basis for memorization and training-data extraction evaluation.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Learning Transferable Visual Models From Natural Language Supervision",
+        "url": "https://arxiv.org/abs/2103.00020",
+        "type": "research",
+        "relevance": "Primary CLIP source for image-text retrieval, zero-shot evaluation, and documented bias limitations.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Sigmoid Loss for Language Image Pre-Training",
+        "url": "https://arxiv.org/abs/2303.15343",
+        "type": "research",
+        "relevance": "Primary SigLIP source for evaluating pairwise sigmoid alignment and image-text retrieval.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Classifier-Free Diffusion Guidance",
+        "url": "https://arxiv.org/abs/2207.12598",
+        "type": "research",
+        "relevance": "Primary basis for measuring guidance trade-offs between conditional fidelity and diversity.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "On Distillation of Guided Diffusion Models",
+        "url": "https://arxiv.org/abs/2210.03142",
+        "type": "research",
+        "relevance": "Primary source for matched quality and latency evaluation of diffusion distillation.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "C2PA Technical Specification",
+        "url": "https://spec.c2pa.org/specifications/specifications/",
+        "type": "specification",
+        "relevance": "Primary specifications for evaluating signed content provenance, edit history, verification, and revocation; select and pin the applicable published version during implementation.",
+        "update_frequency": "periodic",
+        "access": "free",
+        "add_as_web_search": true
+      }
+    ],
     "judge_reliability_research": [
       {
         "name": "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena",
@@ -291,6 +383,15 @@
         "update_frequency": "periodic",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "Machine Learning Systems (Reddi) - Ch.12 Benchmarking AI",
+        "url": "https://mlsysbook.ai/",
+        "type": "book",
+        "relevance": "Systems-benchmarking epistemics: the hardware lottery (citing Hooker 2021), lab-to-deployment metric gaps, environmental conditions (thermal throttling, background load) as reproducibility variables, and unreported confidence intervals on benchmark scores.",
+        "update_frequency": "periodic",
+        "access": "free",
+        "add_as_web_search": false
       }
     ],
     "fine_tuning_platform_docs": [
@@ -612,6 +713,82 @@
         "update_frequency": "periodic",
         "access": "free",
         "add_as_web_search": true
+      },
+      {
+        "name": "Sebastian Raschka, Build a Reasoning Model (From Scratch) (Ch. 5, §5.8, table 5.1)",
+        "url": "https://www.manning.com/books/build-a-reasoning-model-from-scratch",
+        "type": "book",
+        "relevance": "Measured MATH-500 self-refinement ablation on a Qwen3 0.6B base model: best base-model accuracy came with no scorer (25.0%) above heuristic (21.6%) and average-logprob (21.4%) scorers, against a 15.2% unrefined baseline, at roughly 8x runtime. Source for the claim that a likelihood-based selector can be net-negative because it ranks fluency rather than correctness. Single model, single task, single run — directional evidence only.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      }
+    ],
+    "conversational_feedback": [
+      {
+        "name": "Chip Huyen, AI Engineering: Building Applications with Foundation Models (Ch. 10)",
+        "url": "https://www.oreilly.com/library/view/ai-engineering/9781098166298/",
+        "type": "book",
+        "relevance": "Primary source for the conversational user-feedback taxonomy: implicit natural-language signals, action-derived signals, user edits as preference pairs, feedback design timing, and feedback biases (leniency, randomness, position, preference).",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      },
+      {
+        "name": "FITS: Learning New Skills after Deployment - Improving open-domain internet-driven dialogue with human feedback (Xu et al., 2022)",
+        "url": "https://arxiv.org/abs/2208.03270",
+        "type": "research",
+        "relevance": "Source dataset for the eight natural-language complaint groups; the per-group percentages are properties of this dataset as clustered by Yuan et al. (2023), not a general distribution.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "System-Level Natural Language Feedback (Yuan et al., 2023)",
+        "url": "https://arxiv.org/abs/2306.13588",
+        "type": "research",
+        "relevance": "Automatic clustering of FITS feedback into the eight complaint groups reported in Huyen Ch. 10 Table 10-1; cite for the group labels and their counts.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Towards Understanding Sycophancy in Language Models (Sharma et al., 2023)",
+        "url": "https://arxiv.org/abs/2310.13548",
+        "type": "research",
+        "relevance": "Evidence that models trained on human preference feedback tend toward sycophancy; the accuracy-anchored holdout gate in the degenerate-feedback-loop section defends against this.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Apple Human Interface Guidelines - Feedback",
+        "url": "https://developer.apple.com/design/human-interface-guidelines/feedback",
+        "type": "documentation",
+        "relevance": "Official guidance cited for the argument against soliciting positive feedback: a product should produce good results by default.",
+        "update_frequency": "continuous",
+        "access": "free",
+        "add_as_web_search": true
+      }
+    ],
+    "dataset_and_robustness_design": [
+      {
+        "name": "François Chollet & Matthew Watson, Deep Learning with Python, 3rd ed. (Ch. 19, §§19.1.1–19.1.3)",
+        "url": "https://www.manning.com/books/deep-learning-with-python-third-edition",
+        "type": "book",
+        "relevance": "Chollet's attributed (contested, not consensus) LLM failure-mode taxonomy used for robustness eval design: non-adaptation to novelty (familiarity rather than complexity predicts failure), oversensitivity to phrasing (Alice-in-Wonderland and Monty Hall variants), and failure to learn generalizable discrete programs (character-level addition accuracy varying by which digits). Basis for building robustness slices by perturbing memorized instances.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Alice in Wonderland: Simple Tasks Showing Complete Reasoning Breakdown in State-Of-the-Art Large Language Models",
+        "url": "https://arxiv.org/abs/2406.02061",
+        "type": "research",
+        "relevance": "Cited by Chollet for the phrasing-oversensitivity failure mode: perturbing the memorized numeric values of a simple sibling-counting riddle breaks answers that are correct at the canonical values. Reference case for perturbation-based robustness slices.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
       }
     ]
   }

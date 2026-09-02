@@ -1,11 +1,11 @@
 {
   "metadata": {
     "skill": "ai-data-curation-pretraining",
-    "updated": "2026-07-11",
+    "updated": "2026-08-31",
     "audit_date": "2026-07-11",
     "last_verified": "2026-07-11",
-    "last_updated": "2026-07-11",
-    "total_sources": 31,
+    "last_updated": "2026-08-31",
+    "total_sources": 39,
     "description": "Primary sources for LLM pretraining data curation: open corpus recipes, data-curation benchmarks, deduplication, decontamination, data mixing, synthetic data generation, governance, and evaluation harness.",
     "title": "AI Data Curation Pretraining - Sources"
   },
@@ -241,6 +241,33 @@
         "update_frequency": "static",
         "access": "free",
         "add_as_web_search": false
+      },
+      {
+        "name": "Faker (Python)",
+        "url": "https://faker.readthedocs.io/",
+        "type": "documentation",
+        "relevance": "Rule-based synthesis of locale-aware structured records (names, addresses, financial fields). Use for PII-safe stand-ins during scrubbing, format-training fields, and pipeline test fixtures — not for learning realistic distributions.",
+        "update_frequency": "monthly",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Faker (JS, @faker-js/faker)",
+        "url": "https://fakerjs.dev/",
+        "type": "documentation",
+        "relevance": "JS counterpart of Python Faker for rule-based structured-record synthesis in JS/TS pipelines.",
+        "update_frequency": "monthly",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Chance.js",
+        "url": "https://chancejs.com/",
+        "type": "documentation",
+        "relevance": "Lightweight JS random generator (primitives, people, locations, times); same rule-based synthesis role as Faker with a smaller surface.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
       }
     ],
     "governance_and_evaluation": [
@@ -297,6 +324,53 @@
         "update_frequency": "monthly",
         "access": "free",
         "add_as_web_search": true
+      }
+    ],
+    "dataset_discovery": [
+      {
+        "name": "Hugging Face Datasets Hub",
+        "url": "https://huggingface.co/datasets",
+        "type": "repository",
+        "relevance": "Largest ML dataset repository; default first stop for pretraining and fine-tuning data discovery. Filter by task, language, license.",
+        "update_frequency": "daily",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "Google Dataset Search",
+        "url": "https://datasetsearch.research.google.com/",
+        "type": "tool",
+        "relevance": "Meta-search over open-web datasets; finds data outside the ML ecosystem that HF/Kaggle miss.",
+        "update_frequency": "daily",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Kaggle Datasets",
+        "url": "https://www.kaggle.com/datasets",
+        "type": "repository",
+        "relevance": "Hundreds of thousands of datasets, strong on tabular and competition-grade documented data.",
+        "update_frequency": "daily",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "AWS Open Data Registry",
+        "url": "https://registry.opendata.aws/",
+        "type": "repository",
+        "relevance": "Cloud-hosted large open datasets including CommonCrawl itself; useful when compute is co-located.",
+        "update_frequency": "monthly",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "AI Engineering, Chip Huyen (O'Reilly 2025) — dataset engineering chapter",
+        "url": "https://www.oreilly.com/library/view/ai-engineering/9781098166298/",
+        "type": "book",
+        "relevance": "Source of the dataset-repository catalog in references/dataset-discovery.md (HF, Kaggle, Google Dataset Search, Data.gov, ICPSR, UCI/OpenML, Open Data Network, AWS Open Data, SNAP).",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
       }
     ]
   }

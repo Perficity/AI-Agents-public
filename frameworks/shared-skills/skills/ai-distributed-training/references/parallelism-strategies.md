@@ -24,7 +24,7 @@ Parallelism in distributed training addresses two distinct constraints: **comput
 | Tensor Parallel | Memory + compute (intra-node) | AllReduce (per layer) | High |
 | Pipeline Parallel | Memory (inter-node) | Point-to-point (activations) | High |
 | 3-D Parallel | Very large models | All of the above | Very high |
-| Context Parallel | Long sequences | AllGather (sequence dim) | Medium |
+| Context Parallel | Long sequences | Ring P2P of K/V blocks, or all-to-all over heads (Ulysses) | Medium |
 | Expert Parallel | MoE capacity (sparse params) | All-to-all (token dispatch/combine) | High |
 
 ## Decision Tree
@@ -67,7 +67,17 @@ Splits individual weight matrices across GPUs within a node. For a linear layer 
 - **Column-parallel**: each GPU holds `A[:, j:j+d_ff/N]`; result is split across GPUs.
 - **Row-parallel**: each GPU holds `A[i:i+d_model/N, :]`; inputs must be pre-split; outputs are AllReduced.
 
-Transformer blocks alternate column-parallel (first linear in FFN, Q/K/V projections) and row-parallel (second linear in FFN, output projection). This requires exactly one AllReduce per transformer block — acceptable on NVLink (600+ GB/s), expensive over Ethernet.
+Transformer blocks alternate column-parallel (first linear in FFN, Q/K/V projections) and row-parallel (second linear in FFN, output projection). This requires exactly one AllReduce per transformer block — acceptable inside an NVLink domain, expensive over Ethernet.
+
+**Per-GPU NVLink bandwidth by generation** (as of 2026-08; verify the current generation before planning around it):
+
+| Generation | Per-GPU NVLink bandwidth |
+|------------|--------------------------|
+| A100 / NVLink 3 | 600 GB/s |
+| H100 / NVLink 4 | 900 GB/s |
+| B200 / NVLink 5 | 1.8 TB/s |
+
+Reason about the rule as a *ratio*, not an absolute: NVLink is roughly an order of magnitude or more above inter-node InfiniBand per GPU, which is why TP stays intra-node. That framing survives the next hardware generation; a quoted GB/s figure does not.
 
 Megatron-LM adds **sequence parallelism (SP)**: shards layernorm and dropout computations across the sequence dimension, reducing per-GPU activation memory proportionally.
 
@@ -81,7 +91,9 @@ Assigns contiguous layers (a "stage") to each GPU or node group. Input activatio
 
 **Pipeline bubble fraction** (naive): `(pp_degree - 1) / (num_micro_batches + pp_degree - 1)`. More micro-batches → smaller bubble.
 
-**When to use**: model is too large for FSDP even with TP; inter-node bandwidth is the bottleneck (Infiniband at ~200 Gb/s vs NVLink at 600+ GB/s means TP must stay intra-node).
+**When to use**: model is too large for FSDP even with TP; inter-node bandwidth is the bottleneck.
+
+Convert to the same units before reasoning about topology — link rates are quoted in **Gb/s** and NVLink in **GB/s**, an 8× difference that has fooled people into thinking cross-node TP is viable. As of 2026-08 (verify current gen): InfiniBand **NDR is 400 Gb/s = 50 GB/s** per link and **XDR is 800 Gb/s = 100 GB/s** per link; HDR's 200 Gb/s = 25 GB/s is the previous generation. Against H100 NVLink 4 at 900 GB/s per GPU that is roughly an 18× gap in GB/s — which is why TP must stay intra-node.
 
 **Complexity cost**: layer assignment, activation checkpointing at stage boundaries, variable memory across stages (first/last stages hold embedding tables).
 
@@ -98,9 +110,14 @@ Requires careful micro-batch sizing to fill the pipeline and minimize bubble. Me
 
 ## Context Parallelism
 
-Introduced in torchtitan (FSDP2). Shards the sequence dimension across GPUs to handle very long context windows (>32k tokens). All-gathers along the sequence dimension during attention. Orthogonal to TP/PP/DP and can be composed with all of them.
+Shards the sequence dimension across GPUs. Orthogonal to TP/PP/DP/EP and composes with all of them as another mesh dimension. Attention is the hard part: every query needs every key up to its position, so the shards must exchange K/V. Two families do that differently, and torchtitan ships both:
 
-**When to use**: pre-training with long context (>32k tokens) and the sequence itself exceeds per-GPU memory.
+- **Ring Attention** (arXiv 2310.01889) passes K/V blocks **point-to-point around a ring**, overlapping each transfer with local attention compute on the block already in hand. Bandwidth-bound but with no hard degree limit. Note this is *not* an all-gather — materializing the full sequence on every rank would defeat the purpose.
+- **DeepSpeed-Ulysses** does an **all-to-all over the head dimension** instead: each rank ends up with all sequence positions for a subset of heads. Latency-friendlier, but it imposes a hard constraint — **CP degree ≤ number of KV heads**, which bites immediately on GQA models with 8 KV heads.
+
+**Causal load balance.** With causal masking and naive contiguous sharding, rank 0's chunk attends to almost nothing while the last rank attends to the whole prefix — roughly a 2× imbalance, and the slowest rank sets step time. **Zigzag / striped** assignment fixes it by pairing an early chunk with a late chunk on the same rank so every rank carries comparable work. Assume your framework does this only after checking; the naive form is a common default.
+
+**Ordering.** Apply sequence parallelism (SP, the Megatron-style sharding of norm/dropout alongside TP) first — it is close to free. Reach for CP when activation memory along the sequence dimension still dominates after SP. The old ">32k tokens" rule of thumb is not the trigger: frontier runs train at 128k–1M where CP is unavoidable, and CP is also chosen well below 32k when activation memory rather than context length is what binds.
 
 ## Expert Parallelism (MoE)
 
@@ -110,7 +127,7 @@ Mixture-of-Experts (MoE) models keep total parameters huge (e.g. 1T) while activ
 
 **MoE-specific tuning**:
 - **Load balancing**: an auxiliary loss (or DeepSeek-V3's auxiliary-loss-free bias updates) keeps tokens spread across experts; otherwise a few experts saturate.
-- **Capacity factor / token dropping**: caps tokens per expert; overflow is dropped or rerouted. Trades throughput against quality.
+- **Dropless routing (modern default)**: block-sparse / grouped GEMM over variable-size expert batches — no capacity factor, no dropped tokens. This is what Megatron-Core and torchtitan default to since MegaBlocks. **Capacity factor / token dropping** is the legacy alternative: it caps tokens per expert and drops or reroutes the overflow to keep GEMM shapes static, trading quality for a fixed throughput and memory envelope. Use it only when you want that cap deliberately.
 - **Composes as a mesh dimension** alongside DP/TP/PP/CP. Frameworks: Megatron-Core, DeepSpeed-MoE, nanotron.
 
 **When to use**: the model is sparse (MoE) and its experts exceed one GPU's memory. EP is the cheapest way to scale total capacity because it moves tokens, not weights.

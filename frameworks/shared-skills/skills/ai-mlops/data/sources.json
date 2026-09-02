@@ -1,14 +1,79 @@
 {
   "metadata": {
     "skill": "ai-mlops",
-    "updated": "2026-07-11",
-    "total_sources": 38,
-    "description": "Curated sources for production MLOps, LLMOps, and agent runtime operations: deployment, observability, retraining, incidents, governance, MCP, and GenAI security.",
-    "version": "3.5",
+    "updated": "2026-08-24",
+    "total_sources": 45,
+    "description": "Curated sources for production MLOps, LLMOps, responsible-AI and multimodal operations, agent runtime operations, deployment, observability, retraining, incidents, governance, MCP, and GenAI security.",
+    "version": "3.6",
     "title": "AI Mlops - Sources",
-    "last_updated": "2026-07-11"
+    "last_updated": "2026-08-24"
   },
   "categories": {
+    "responsible_multimodal_operations": [
+      {
+        "name": "NIST AI RMF Core",
+        "url": "https://airc.nist.gov/airmf-resources/airmf/5-sec-core/",
+        "type": "specification",
+        "relevance": "Official operational outcomes for oversight, fairness, privacy, environmental impact, feedback, and appeal.",
+        "update_frequency": "continuous",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "NIST Privacy Framework",
+        "url": "https://www.nist.gov/privacy-framework",
+        "type": "specification",
+        "relevance": "Official framework for identifying and managing privacy risk across the system lifecycle.",
+        "update_frequency": "continuous",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "C2PA Technical Specification",
+        "url": "https://spec.c2pa.org/specifications/specifications/",
+        "type": "specification",
+        "relevance": "Primary technical specifications for signed content provenance and edit history; select and pin the applicable published version during implementation.",
+        "update_frequency": "periodic",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "Datasheets for Datasets",
+        "url": "https://arxiv.org/abs/1803.09010",
+        "type": "research",
+        "relevance": "Dataset provenance, motivation, composition, collection, and maintenance documentation.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Model Cards for Model Reporting",
+        "url": "https://arxiv.org/abs/1810.03993",
+        "type": "research",
+        "relevance": "Release evidence for intended use, evaluation conditions, subgroup results, and limitations.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Deep Leakage from Gradients",
+        "url": "https://arxiv.org/abs/1906.08935",
+        "type": "research",
+        "relevance": "Operational threat basis for protecting gradients and federated-learning updates.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      },
+      {
+        "name": "Energy and Policy Considerations for Deep Learning in NLP",
+        "url": "https://arxiv.org/abs/1906.02243",
+        "type": "research",
+        "relevance": "Primary reference for reporting computational and environmental costs with model development.",
+        "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": false
+      }
+    ],
     "foundational_standards_and_security": [
       {
         "name": "EU AI Act (Regulation (EU) 2024/1689)",
@@ -117,6 +182,15 @@
         "type": "research",
         "relevance": "Production readiness rubric for ML systems; useful for deployment gates and audits.",
         "update_frequency": "static",
+        "access": "free",
+        "add_as_web_search": true
+      },
+      {
+        "name": "Machine Learning Systems (MLSysBook, Harvard) - Ch.13 ML Operations",
+        "url": "https://mlsysbook.ai/contents/core/ops/ops.html",
+        "type": "textbook",
+        "relevance": "Ch.13 s13.3 presents the ML technical-debt taxonomy (boundary erosion/CACHE, correction cascades, undeclared consumers, data/config/pipeline debt, feedback loops) with a hub-and-spoke debt map and industry failure cases; basis for references/ml-technical-debt-taxonomy.md.",
+        "update_frequency": "periodic",
         "access": "free",
         "add_as_web_search": true
       }

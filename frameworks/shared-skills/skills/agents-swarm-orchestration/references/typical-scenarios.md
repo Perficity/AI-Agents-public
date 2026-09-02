@@ -46,6 +46,8 @@ Each scenario names: the **trigger**, the **surface + pattern** (from §Named Pa
 
 **Why not one big wave:** edit-capable cap is 3 on a shared branch — super-linear merge cost above that. Worktree isolation lets read-only scouts go wide but does not lift the edit cap.
 
+**Scale upper bound (real-world case, 2026-07):** Bun's Zig→Rust port — ~535K lines in 11 days via ~50 dynamic Claude Code workflows, peaking at 64 concurrent agents across 4 worktrees; ~$165K at public API pricing (5.9B uncached input / 690M output / 72B cached-read tokens), 6,502 commits ([Bun blog](https://bun.com/blog/bun-in-rust), [Pragmatic Engineer analysis](https://blog.pragmaticengineer.com/the-pulse-what-can-we-learn-from-buns-rapid-rust-rewrite-with-ai/)). The method matches this walkthrough scaled up: old code as frozen behavioral reference, build/test failures fed back into the *generation process* rather than hand-patching outputs. The caveat is equally instructive: post-ship regressions (19 fixed shortly after) and the Zig creator's "unreviewed slop" critique ([The Register](https://www.theregister.com/devops/2026/07/14/zig-creator-calls-buns-claude-rust-rewrite-unreviewed-slop/5270743)) — throughput at this scale outruns human review capacity, so the integration-verify step and review debt become the binding constraint, not agent count.
+
 ## Deep Walkthrough 2 — Security / Compliance Sweep
 
 **Job:** find auth, secrets, and data-flow risks across a service before release. `risk_level: high`, often `critical`.
@@ -75,10 +77,10 @@ Every scenario maps to both runtimes; the dispatch primitive differs, the shape 
 | Concern | Claude Code | Codex |
 |---------|-------------|-------|
 | Dispatch a wave | Spawn multiple subagents in one turn (explicit under Opus 4.7) | "Spawn one agent per item, wait for all, summarize each" (explicit activation) |
-| Read-only scout | `Explore` built-in (Haiku) | `explorer` built-in, `sandbox_mode = "read-only"` |
-| Edit worker isolation | `isolation: worktree` | `sandbox_mode = "workspace-write"` + controlled sandbox |
-| Concurrency cap | No hard cap; nesting allowed since June 2026 (chain cap 5) — hold depth at 1 by policy | `max_threads: 6`, `max_depth: 1` (never raise depth) |
-| Non-interactive (scenario 10) | `claude -p ... --output-format json` + `parallel` | Codex CLI batch + `spawn_agents_on_csv` (one worker per row) |
+| Read-only scout | `Explore` built-in (inherits parent model) | `explorer` built-in, `sandbox_mode = "read-only"` |
+| Edit worker isolation | Subagents: `isolation: worktree`; teammates share the lead checkout | `sandbox_mode = "workspace-write"` + controlled sandbox |
+| Concurrency and nesting | Respect live runtime caps; recursive spawn defaults to 3 layers, but hold depth at 1 by policy | Discover the active tool/config schema; do not assume universal `max_threads` or `max_depth` keys |
+| Non-interactive (scenario 10) | `claude -p ... --output-format json` + `parallel` | Codex CLI batch; use `spawn_agents_on_csv` only when the active experimental tool surface exposes it |
 | Cheap loop tier (scenario 11) | `CLAUDE_CODE_SUBAGENT_MODEL` | `[profiles.cheap-loop]` + `service_tier = "flex"` |
 
 Do not hardcode model IDs — verify against [platform-patterns.md](platform-patterns.md) and the live docs before dispatch.

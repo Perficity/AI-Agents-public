@@ -228,28 +228,44 @@ jobs:
     - name: Validate
       run: terraform validate
 
+    # Plan and apply run in the SAME job so the binary plan file never leaves
+    # the runner: Terraform plan files store every secret passed to a resource
+    # or data source in plain text, so uploading one as a build artifact
+    # publishes those secrets to anyone who can read the artifact.
     - name: Plan
       run: terraform plan -out plan.tfplan
 
-    - name: Upload Plan
-      uses: actions/upload-artifact@v4
-      with:
-        name: tfplan
-        path: plan.tfplan
+    # Share the human-readable diff for review, never the binary plan.
+    # `-no-color` keeps it diffable; values marked `sensitive = true` are
+    # redacted by `terraform show`, so mark every secret-bearing variable
+    # and output sensitive before relying on this.
+    - name: Render plan for review (secrets masked)
+      run: terraform show -no-color plan.tfplan > plan.txt
+
+    - name: Post plan to PR
+      if: github.event_name == 'pull_request'
+      run: gh pr comment "$PR" --body-file plan.txt
+      env:
+        PR: ${{ github.event.pull_request.number }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Apply (manual approval)
       if: github.ref == 'refs/heads/main'
+      environment: production   # GitHub environment gate = required reviewer
       run: terraform apply plan.tfplan
 
 ```
 
 ### CI Checklist
 
-- [ ] Plan stored as artifact  
-- [ ] Require manual approval for apply  
-- [ ] Run tfsec/checkov  
-- [ ] Use IAM roles, not secrets  
-- [ ] Persistent caching for terraform providers  
+- [ ] Plan file (`*.tfplan`) treated as a secret-bearing artifact — never uploaded unencrypted, never committed, never emailed. Keep it inside one job, or store it encrypted at rest and in transit with access controls as tight as those on the secrets themselves
+- [ ] Only the `terraform show` text output is shared for review, with every secret-bearing variable and output marked `sensitive = true`
+- [ ] Require manual approval for apply
+- [ ] Run tfsec/checkov
+- [ ] Use IAM roles, not secrets
+- [ ] Persistent caching for terraform providers
+
+> **Why:** Brikman, *Terraform: Up & Running* (3e), Ch6, "Plan files": "just as with Terraform state, any secrets you pass into your Terraform resources and data sources will end up in plain text in your Terraform plan files!" He requires that saved plan files be encrypted in transit and on disk, and that access be controlled "with at least as much care as you control access to the secrets themselves." The same chapter notes state files have the identical property — "All data in Terraform state files is stored in plain text."
 
 ---
 

@@ -619,3 +619,5 @@ GOOD: Quick verification in staging, then canary deployment
 ---
 
 > **Remember**: Production debugging is about gathering evidence, forming hypotheses, and testing changes safely. Always have a rollback plan.
+
+> **When you have no hypothesis to test** — an anomaly that will not reproduce and no theory of where it lives — switch to the hypothesis-free core analysis loop in [../../qa-observability/references/core-analysis-loop.md](../../qa-observability/references/core-analysis-loop.md), then return here once it has localised the problem.

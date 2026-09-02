@@ -342,6 +342,42 @@ A platform team and a product (stream-aligned) team have a specific, narrow rela
 - **Team Topologies' framing applies directly here:** platform teams exist to reduce cognitive load for stream-aligned teams. If a platform team's own roadmap is driven by internal platform elegance rather than measured reduction in product-team toil or lead time, it has drifted from serving its actual customers.
 - **A platform team without a product owner and a roadmap is not a platform team — it is a shared-infrastructure team that will be treated as a cost center and understaffed.** Insist on a platform-as-product operating model (internal customers, a feedback loop, a deprecation policy) as a precondition, not an optional nicety.
 
+### Measuring the cognitive load you claim to be reducing
+
+The bullet above justifies the platform by cognitive load, which raises the obvious question: measured how? Team Topologies 2e (2025) supplies an instrument, and a correction to the way most teams reason about the number.
+
+**The four-cluster model.** The authors' account of its origin: *"To address these issues, we worked with Dr. Laura Weis, an expert in organizational psychology, to devise a scientific model for systematically assessing cognitive load in knowledge-intensive teams at large (not restricted to teams working in technology). We found more than twenty drivers of team cognitive load arranged into four clusters: team characteristics, work practices and processes, task characteristics, and work environments and tools."*
+
+The motivation for going beyond the classic intrinsic/extrinsic/germane split is stated plainly: *"because there is no clean 'split' between intrinsic, extrinsic, and germane types of cognitive load, we run the risk of overlooking drivers of team cognitive load that are not as visible or overinvest in solutions that address consequences rather than the causes of excessive cognitive load on teams."*
+
+That is the failure this closes for a platform team. A platform built against a guessed cause is an expensive solution to a symptom. Note the four clusters: only one of them — *work environments and tools* — is squarely what a platform can fix. If the dominant drivers turn out to sit in *team characteristics* or *work practices and processes*, a new internal developer portal will not move them, and the honest response is an enabling team or a boundary change instead. Worth registering that the survey has diagnostic value on its own: the authors report that first-time respondents "often convey that the questions alone made them realize how many factors that can impact their cognitive load were not even on their radar."
+
+The instrument built on this model is named **Teamperature**, a tool developed by Aleix and the Team Topologies team. It supports "looking at team cognitive load trends and evolution over time (at the team, group, and even organizational level)" — trend over time being the useful signal, not a single reading.
+
+**Load is a river, not a bucket.** The book explicitly rejects the intuition that a platform's goal is to drive cognitive load toward zero:
+
+> *"A misguided view would see the load as a bucket that we fill with water, and once it's full, the team should never be asked to learn new things or take on new responsibilities. A river analogy is more on point. You don't want an overflow causing disaster, but the river level is expected to change over time. Also, our goal should not be to always lower the level; otherwise, we end up with no flow!"*
+
+A temporary increase is framed as a *"necessary evil"* that teams "might need as long as there's a clear objective" — increased service ownership, improved productivity, or modernizing a system. What must be avoided instead is *"continuously increasing the team's cognitive load by demanding more ownership without adequate guidance and support, piling on responsibilities and expecting everything else to stay the same, or standing still while the number of tools, services, frameworks, and processes the team must handle proliferates without adequate platforms to handle some of that complexity."*
+
+For a platform team, that last clause is the actual mandate — and the metric is the trend line under a growing estate, not an absolute floor.
+
+**Load shifts upward before it drops — assess leadership too.** The Creditas case in the book is the correction most reorganizations miss. Creditas identified *"Leadership overload: The leadership team itself was struggling with cognitive load, including lack of solution alignment, team alignment, and role overload"* among its key drivers, and the book judges that *"The decision to assess leadership cognitive load proved crucial. It avoided common but ineffective approaches like changing processes, reorganizing the tribe, or laying off employees instead of addressing the actual problems."*
+
+Then, on executing the change: *"Shortly after announcing the new direction, Creditas found that team cognitive load wasn't decreasing — it was simply shifting to new drivers"* — lack of role clarity, ineffective processes, and high task complexity from newly end-to-end responsibilities. The lesson as a Creditas leader states it: *"We learned to expect [that] team cognitive load might intensify before you are able to address it. Failing to assess cognitive load and make a focused plan based on the resulting data would have prevented the initiative from succeeding."* Their response was two enabling teams (one facilitating leadership–product collaboration, one upskilling developers on mobile to reduce task complexity); after two months, assessments "showed significant improvement across all three drivers."
+
+The commentary generalizes it: *"Many companies jump into reorgs — for example creating new platforms — with loosely defined improvement goals and little to no data on whether those will really address the main bottlenecks to flow,"* and identifies leadership load as *"a frequent bottleneck in itself due to decision-making overload and difficulties in prioritization."*
+
+**What this means operationally for a platform rollout:**
+
+- Baseline cognitive load across all four clusters *before* building, so you know whether a platform is the right intervention at all.
+- Assess the leadership layer, not only the stream-aligned teams. If leadership is the bottleneck, a platform will not clear it.
+- Expect the number to get worse mid-transition. Budget enabling-team capacity for that window rather than reading the rise as failure and reversing course.
+- Track the trend, not a target floor. "Load went up while the team absorbed end-to-end ownership" can be a success; "load stayed flat while the estate doubled" already is one.
+- Treat a platform roadmap unsupported by driver data the way you would treat an outage response with no telemetry.
+
+*Source: Skelton & Pais, Team Topologies, 2nd edition (2025) — cognitive load assessment discussion and the Creditas case study. Figures reported in third-party summaries of this case are not reproduced here; only what the book itself states is quoted above.*
+
 ---
 
 ## Migration Sequencing: CI, IaC, GitOps Adoption Order

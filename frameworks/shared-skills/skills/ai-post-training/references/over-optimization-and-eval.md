@@ -11,6 +11,7 @@ post-training, not an edge case. This file covers detecting it and controlling i
 - [The Symptoms](#the-symptoms)
 - [Controls](#controls)
 - [Evaluating the True Objective](#evaluating-the-true-objective)
+- [Pick the Serving Budget Before the Run](#pick-the-serving-budget-before-the-run)
 - [Fail-Loud Checklist](#fail-loud-checklist)
 - [Routing to Depth](#routing-to-depth)
 
@@ -35,10 +36,26 @@ still be gamed if the checker is incomplete (e.g. tests that pass on degenerate 
 
 ## Controls
 
-- **KL regularization (the primary knob).** Penalize KL divergence between the policy and the
-  reference (SFT) model. This keeps the policy near its trusted starting behavior and bounds how
-  far it can chase the proxy. Too high → no learning; too low → reward hacking and drift. Tune
-  it; do not omit it.
+- **KL regularization — but scoped by reward source.** Penalizing KL divergence between the
+  policy and the reference (SFT) model keeps the policy near its trusted starting behavior and
+  bounds how far it can chase the proxy. Whether that is *the* control depends on what produces
+  the reward:
+  - **Learned reward model (RM+PPO, rubric graders, DPO's implicit β).** KL is the primary
+    trust-region control and the thing standing between you and a hacked proxy. Tune it; do not
+    omit it. Too high → no learning; too low → reward hacking and drift.
+  - **Verifiable checker (RLVR).** `beta=0` is the 2026 standard. There is no learned proxy to
+    hack, and KL mainly caps the achievable reasoning gain. TRL's `GRPOConfig` ships
+    `beta: float = 0.0` with the docstring "KL coefficient. If `0.0` (default), the reference
+    model is not loaded, reducing memory usage and improving training speed" (verified
+    2026-08-31); DAPO drops the KL penalty (§2.3) and GSPO sets it to zero. The trust region is
+    carried instead by **PPO-style clipping** — plus DAPO's decoupled clipping and dynamic
+    sampling. Reach for a nonzero β here only on evidence: observed drift off SFT behavior, or a
+    capability regression outside the RLVR task distribution.
+  - **The checker is still a proxy.** A verifiable reward is a *much tighter* proxy, not the
+    true objective — tests that pass on degenerate solutions are still hackable. β=0 is a
+    statement about trust regions, not about invulnerability.
+  Anchor values per method (they differ by orders of magnitude and mean different things) are in
+  [methods-and-pipeline.md](methods-and-pipeline.md).
 - **Early stopping on a held-out true-objective eval** — stop when *real* quality peaks, not
   when reward peaks (they diverge).
 - **Reward-model ensembles / uncertainty** — penalize high-variance regions where the RM is
@@ -63,6 +80,21 @@ The reward curve is *not* the evaluation. Measure the thing you actually want:
 
 Calibrate any judge model and set thresholds via [ai-evals](../../ai-evals/SKILL.md).
 
+## Pick the Serving Budget Before the Run
+
+Test-time compute is not only a *route-away* from training ("raise the thinking budget instead").
+It is an input to the training design, because what you train for is conditioned on the inference
+budget you will actually serve at. Decide the target budget first; it constrains three things:
+
+- **`max_completion_length`** — training a long-CoT policy you will then serve under a short
+  budget wastes the training, and the served model is out of distribution relative to what it
+  learned.
+- **Length-bias controls.** How hard you fight GRPO's length inflation (Dr. GRPO, DAPO, explicit
+  penalties) depends on whether long outputs are affordable at serving time or a cost you refuse.
+- **How you read `avg_response_len`** in a live run. It is a training-budget metric with a direct
+  serving consequence: rising length is only "the model reasoning more" if you will pay for that
+  length in production. See [grpo-run-diagnostics.md](grpo-run-diagnostics.md).
+
 ## Fail-Loud Checklist
 
 Post-training is exactly the setting where success and failure look alike on the training
@@ -75,6 +107,8 @@ dashboard. Surface uncertainty explicitly:
 
 ## Routing to Depth
 
+- Reading a **live** GRPO run's metrics (advantage mean/std, entropy, reward exhaustion,
+  degenerate groups) -> [grpo-run-diagnostics.md](grpo-run-diagnostics.md)
 - Reward model and preference data quality -> [reward-and-data.md](reward-and-data.md)
 - Which algorithm and the KL-penalty mechanics -> [methods-and-pipeline.md](methods-and-pipeline.md)
 - Eval methodology, judge calibration, thresholds -> [ai-evals](../../ai-evals/SKILL.md)

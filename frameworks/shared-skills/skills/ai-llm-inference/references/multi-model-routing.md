@@ -12,6 +12,7 @@ Use current provider docs, router docs, and eval results before recommending a s
 - [Pattern 1: Rule-Based Routing](#pattern-1-rule-based-routing)
 - [Pattern 2: Classifier-Based Routing](#pattern-2-classifier-based-routing)
 - [Pattern 3: Cascade (Small → Large Fallback)](#pattern-3-cascade-small-→-large-fallback)
+- [Escalation Confidence Signals](#escalation-confidence-signals)
 - [Pattern 4: A/B Routing](#pattern-4-ab-routing)
 - [Router Architecture Comparison](#router-architecture-comparison)
 - [LiteLLM Router Configuration](#litellm-router-configuration)
@@ -207,6 +208,24 @@ class QualityChecker:
         }
         return sum(checks.values()) / len(checks)
 ```
+
+### Escalation Confidence Signals
+
+The `QualityChecker` above is one escalation gate; it is not the only kind. Pai (*Designing Large Language Model Applications*, O'Reilly 2025, ch. 13, pp. 631–633) catalogs the signals a cascade can use to decide "is this small model's answer good enough, or do I pay for the next tier?" Pick the signal that matches your model type — the wrong one silently escalates everything or nothing.
+
+| Signal | Where it applies | Mechanism | Cost to compute |
+|---|---|---|---|
+| Calibrated output probabilities | Encoder-style models (e.g. BERT-family classifiers) | Use the output probability score directly as the confidence measure | Free — already in the forward pass |
+| Self-consistency | Decoder models | Sample the model n times; high agreement across outputs reads as confidence, disagreement escalates | n× generation cost |
+| Margin sampling | Decoder models | Generate the first token; take the probability gap between the most probable and second most probable token as the margin. Escalate below a threshold | ~1 token |
+
+**Calibrated output probabilities.** Pai notes this works for encoder-only models where the output probability scores can serve as the confidence measure — and that it is *a group of well-calibrated models* that enables efficient routing. Calibration is the precondition, not a nicety: an uncalibrated score is a confident-looking number with no relationship to correctness, and a cascade thresholding on it will escalate the wrong requests.
+
+**Self-consistency.** For decoder models Pai describes self-consistency as the popular method: generate multiple times, and if the outputs are mostly consistent with each other, treat the model as confident; if they are not, pass the input down the cascade. Cost is the obvious tension — sampling n times at the small tier can erase the savings the cascade exists to capture, so the n-sample small-model cost has to stay below the single-shot large-model cost for the pattern to pay.
+
+**Margin sampling (Ramirez et al.).** Generate the first token and use the difference between the probability of the most probable token and the second most probable token as the margin. The assumption Pai states is directional: the higher the margin, the more confident the model; below a threshold, the input goes to the next model. The appeal relative to self-consistency is that it reads a single token rather than n full generations. No effect magnitudes are quoted here because the source states the mechanism and direction, not measured escalation rates — tune the threshold on your own eval set.
+
+> **Do not ask the model to grade itself.** Pai's explicit warning: some works propose asking the LLM to state the confidence level of its output, and "this has not been proven to be effective yet. Beware of asking the LLM to verify its own work in any form!" (p. 632). A self-reported confidence score is the cheapest signal to implement and the one with the least evidence behind it — which is exactly why it keeps appearing in cascade implementations. Prefer a signal computed *from* the model's output distribution over one the model asserts about itself.
 
 ### Pattern 4: A/B Routing
 

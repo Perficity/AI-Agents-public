@@ -8,6 +8,7 @@
 - [Defining SLOs](#defining-slos)
 - [Error Budgets](#error-budgets)
 - [Burn Rate Alerts](#burn-rate-alerts)
+- [Predictive (Lookahead) Burn Alerts](#predictive-lookahead-burn-alerts)
 - [Multi-Window SLOs](#multi-window-slos)
 - [SLO Dashboard Template](#slo-dashboard-template)
 - [Common SLO Pitfalls](#common-slo-pitfalls)
@@ -115,6 +116,18 @@ slis:
       sum(payment_success_total) / sum(payment_attempts_total)
     target: 99%
 ```
+
+### Durability — the SLI availability does not cover
+
+For any service that owns a datastore, **durability is a distinct SLI from availability**, and a green availability dashboard is not evidence of it. Availability is "the ability to return an expected response to the requesting client"; durability "indicates the successful persistence of a write operation to storage so that it can be retrieved at another time" (Campbell & Majors, *Database Reliability Engineering*, 2017, p. 16). A system can be fully available — accepting writes, returning 200s, meeting its latency target — while silently losing data: replication lagging past the failover point, an unfenced write path, a queue acknowledging before the write commits.
+
+Express it as a bounded loss window rather than a percentage. The source's own form: *in the event of a system failure, no more than the past two seconds of data can be lost.* That maps directly onto an RPO and is falsifiable, which "99.99% durable" is not.
+
+Evidencing it requires different instrumentation than an uptime probe, because uptime cannot observe loss:
+
+- **Backup success as a signal, restore verification as the proof.** A backup job exiting zero says a file was written, not that it contains recoverable data. The SLI should be driven by periodic restores into a scratch environment with a row-count or checksum assertion — an unverified backup is an untested claim.
+- **Measure the actual loss window, not the configured one.** Replication lag, unacknowledged-write depth, and time since last verified restore are the observable quantities. Alert on them the way you alert on burn rate.
+- **Record the last successful restore verification** as a first-class metric with an age. A durability SLI whose freshest evidence is months old has already failed.
 
 ---
 
@@ -354,6 +367,85 @@ groups:
           summary: "Warning error budget burn rate (6h window)"
           description: "Consuming 5% of 30-day error budget in 6 hours"
 ```
+
+---
+
+## Predictive (Lookahead) Burn Alerts
+
+A **second family** of burn alerting, alongside the fixed-threshold multi-window table above. The multi-window table answers "how fast are we burning right now, over these fixed windows?". Predictive alerts answer a different question: **"if current conditions hold, when does the budget hit zero — and is that soon enough to page someone?"** Both are legitimate; they are not substitutes for one another.
+
+Source: Charity Majors, Liz Fong-Jones, George Miranda, *Observability Engineering* (Early Release ch. 12; final ed. ch. 13).
+
+Scope note from the source: these preemptive calculations "work best to prevent violations for SLOs with targets up to 99.95%". Above 99.95% they work less preventatively but can still report on and warn about degradation — there simply is not enough tolerable downtime left to act inside.
+
+### Prerequisite: frame time as a sliding window
+
+Fixed calendar windows (1st to the 30th) fail for burn forecasting, and the reason is mechanical rather than philosophical:
+
+> The correct first choice to make when calculating burn trajectories is to frame time as a sliding window, rather than a static fixed window. Otherwise, there isn't enough data after a window reset to make meaningful decisions.
+
+A fixed window resets to full budget instantly, so for the first stretch of every new period the forecast has nearly no history to extrapolate from. A sliding window (any trailing 30-day period) burns and restores a little at each interval, which also matches customer memory better — a refund for an outage on the 31st does not make a customer tolerant of another outage on the 2nd. See [Multi-Window SLOs](#multi-window-slos) below, which already recommends rolling windows for the same underlying reason.
+
+### Why a non-zero budget threshold is not enough
+
+The simplest alert above zero is a fixed remaining-budget threshold — page when remaining error budget dips below, say, 30%. The source's verdict:
+
+> A challenge with this model is that it effectively just moves the goalpost by setting a different empty threshold. This type of "early warning" system can be somewhat effective, but it is crude.
+
+In practice the team treats the threshold crossing as if the whole budget were spent, sits in a feature freeze waiting for the budget to climb back above an arbitrary line, and forfeits delivery time it did not need to forfeit. The threshold buys headroom by giving up the thing the budget existed to permit.
+
+### The lookahead window and the baseline window
+
+A predictive burn alert needs two windows:
+
+- **Lookahead window** — how far into the future the forecast extends.
+- **Baseline (lookback) window** — how much recent data feeds the prediction.
+
+The lookahead window is chosen by urgency, not by convention. A regression putting a 99.9% target on track for 99.88% a month from now is not an emergency and can wait for the next business day. A failure rate on track to reach 98% within one hour should page — left uncorrected it "could hemorrhage your error budget for the entire month, quarter, or year within a matter of hours." Set the lookahead to the horizon at which the answer changes your response, and route severity accordingly.
+
+The baseline window is then constrained by the lookahead. **The sizing rule, verbatim:**
+
+> In practice, we've found that a given baseline window can linearly predict forward by a factor of four at most without needing to add compensation for seasonality (e.g. peak/off-peak hours of day, weekday vs weekend, or end/beginning of month).
+
+So one hour of observed performance, extrapolated four times over, gives an accurate-enough prediction of whether the budget empties in four hours. The general form: **baseline should be about the same order of magnitude as the lookahead, and no smaller than lookahead ÷ 4.**
+
+Both directions of violating this rule are hazardous:
+
+- **Baseline too short for the lookahead** — using the past thirty minutes to extrapolate the next few days "runs the risk of becoming flappy". Short windows carry minute-scale cyclical noise (an un-jittered cron job, a batch tick) that smooths out over a day but dominates a small sample. Forecast far enough from it and the alert oscillates on noise.
+- **Baseline too long for the lookahead** — waiting for a full day of history before predicting the next several minutes is impractical: "Your error budget for the entire year could be blown by the time you make a prediction."
+
+Beyond the 4× factor you are no longer doing linear extrapolation honestly; you need explicit seasonality compensation for time-of-day, weekday/weekend, and month-boundary effects.
+
+### Short-term vs context-aware calculation
+
+Two ways to compute the trajectory, differing in what history they consider:
+
+| | **Short-term (ahistorical)** | **Context-aware** |
+| --- | --- | --- |
+| Input | Baseline data from the most recent period only | Total successful and failed events for the SLO's **entire trailing window** |
+| Assumption | Extrapolates as if there had been no errors prior to the baseline window | Current remaining budget is part of the calculation |
+| Cost | Cheaper | "Computationally more expensive than short-term burn alerts" |
+| Behaviour | Same urgency regardless of budget already spent | Same degradation can be more urgent when little budget remains |
+
+The choice hinges on two factors. The first is the **cost/sensitivity tradeoff** above. The second is a **philosophical stance**: should the amount of budget remaining influence how responsive you are to degradation? If a significant error with 10% of budget left should be treated as more urgent than the same error with 90% left, choose context-aware and pay the compute. If degradation severity should be judged on its own terms, short-term is sufficient and cheaper.
+
+### Worked example (the book's)
+
+Reproduced from the source, and labelled as its example rather than a general recommendation:
+
+- SLO target: **99% of units succeed** over a moving 30-day window.
+- Typical month: **43,800 units**.
+- Budget: only 1% may fail → **438 units** may fail per month.
+- Past 24 hours: **1,440 units observed, 50 failed**.
+- Past 6 hours: **360 units observed, 5 failed**.
+
+A very simple short-term burn alert reasons from the most recent baseline: 5 units burned in the past 6 hours implies roughly 20 in the next 24, against a 438-unit budget — not alarming on its own. Note that the 24-hour figure (50 failures) tells a materially different story than the 6-hour figure (5 failures) extrapolated, which is exactly why the baseline window choice is a design decision and not a default. "Units" here is deliberately data-type-agnostic: the source uses it for the granular building block of the calculation, either a time-series datapoint marked good/bad or an individual event corresponding to a user transaction, at one datapoint per minute in these examples.
+
+### Choosing between the two families
+
+- Keep the **fixed-threshold multi-window burn-rate alerts** above as the paging backbone. They are cheap, well-understood, and their false-positive behaviour is well documented.
+- Add **predictive alerts** when you need lead time to act rather than notification that burn is already fast — particularly for targets at or below 99.95%, where there is enough tolerable downtime for early warning to be actionable.
+- Do not run both at the same severity on the same SLO. Two families paging for the same condition is the alert-fatigue failure mode described in [alerting-strategies.md](./alerting-strategies.md).
 
 ---
 

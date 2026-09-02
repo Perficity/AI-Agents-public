@@ -6,6 +6,8 @@
 
 The terms overlap. A loop is often one cycle within an agent/workflow graph; an improvement graph can supervise many runs; and a knowledge/context graph can supply one node with evidence. They are not interchangeable.
 
+**Harness engineering** circulates as a third sibling label (mid-2026, across vendor and practitioner posts; also the "Agentic Harness Engineering" paper, arXiv [2604.25850](https://arxiv.org/abs/2604.25850)): the environment *around* the model — tool wiring and interfaces, context injection, permissions, persistence, execution control, observability — as distinct from the loop's feedback cycle or the graph's topology. It is not a graph question; route it to the harness-layer skills: [`../ai-coding-agents-tools/SKILL.md`](../../ai-coding-agents-tools/SKILL.md), [`../ai-coding-agents-permissions/SKILL.md`](../../ai-coding-agents-permissions/SKILL.md), [`../agents-hooks/SKILL.md`](../../agents-hooks/SKILL.md), `ai-context-layer`, and [`../ai-coding-agents-observability-evals/references/harness-self-evolution.md`](../../ai-coding-agents-observability-evals/references/harness-self-evolution.md) for evolving the harness itself. A useful triage heuristic from the practitioner discourse: weak or unsafe *operation* → harness; unreliable *results* → loop; unmanageable *process shape* → graph.
+
 ## Choose The Graph's Job First
 
 | If the question is... | It is this graph | Use it to model | Route for depth |

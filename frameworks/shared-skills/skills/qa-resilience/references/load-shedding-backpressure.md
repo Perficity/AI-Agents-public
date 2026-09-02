@@ -240,6 +240,22 @@ class BoundedQueue {
 
 **Use both together:** Rate limiting caps individual clients. Load shedding protects the system when aggregate load from all clients exceeds capacity.
 
+### Per-Caller In-Flight Caps as Isolation
+
+Rate limits count requests over a window; an in-flight cap bounds how much of a *shared, exhaustible* resource one caller can occupy at any instant — threads, connections, or slots against a hot keyspace. This is the control that stops one slow or misbehaving tenant from parking the whole pool while everyone else queues behind it.
+
+*Site Reliability Engineering*, Ch. 21 §"Per-Customer Limits" frames the goal as blast-radius containment: when global overload happens, "it's vital that the service only delivers error responses to misbehaving customers, while other customers remain unaffected." Google provisions per-customer quotas from negotiated usage, and deliberately lets those quotas sum to more than total capacity — relying "on the fact that it's unlikely for all of their customers to hit their resource limits simultaneously."
+
+For the in-flight variant, Ch. 22 §"Bimodal latency" offers a concrete figure: "You might consider only allowing 25% of your threads to be occupied by any one client in order to provide fairness in the face of heavy load by any single client misbehaving."
+
+Treat 25% as **Google's operating choice for that context, not a universal constant.** The right cap depends on how many callers you have and how correlated their load is — a service with four equal tenants and one with four hundred want very different numbers. Derive it, don't copy it:
+
+- Set the cap above each caller's normal peak concurrency, so it only binds during abuse or slowness.
+- Keep the sum of caps above 100% of capacity (as Google does with quotas) — sizing every caller to a strict `1/N` share wastes capacity that idle tenants would have left on the table.
+- Apply the cap per exhaustible resource, and per keyspace or shard where one hot range can stall requests independently of the caller.
+- Reject over-cap requests immediately with a distinct signal (429 plus a reason), so the caller can back off and the rejection stays cheap.
+- Export per-caller in-flight counts and rejection rates; without them, an isolation breach looks identical to a general overload.
+
 ---
 
 ## Server-Side Admission Control

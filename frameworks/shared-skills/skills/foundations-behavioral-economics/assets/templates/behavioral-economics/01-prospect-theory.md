@@ -13,6 +13,12 @@ The value function implies:
 - A $50 loss from a $100 starting point feels worse than a $50 loss from a $500 starting point.
 - Framing the same outcome as avoiding a loss vs achieving a gain changes its attractiveness.
 
+### Probability weighting (π) vs loss aversion (λ)
+
+Keep these two parameters separate. λ (loss aversion) is the steepness asymmetry of the value function; π is the *weighting of probabilities themselves*, and it is the primitive that sells a lottery ticket and an insurance policy to the same person on the same day — one overweighted small chance of a large gain, one overweighted small chance of a large loss. A single "greed" or risk-appetite variable cannot produce both directions; π can. π is close to flat for near-certain outcomes, so any edge built on overweighting shrinks as the probability moves toward the middle of the range — the exploitable zone is the tails.
+
+Evidence grade: direction **A** (overweighting of small probabilities replicates broadly); specific parameter values **B**, the same grade this skill assigns prospect-theory parameters generally — Imai et al. 2025 finds measurement design is the strongest predictor of parameter variation. Quote the direction, not a coefficient. For the business-model consequences of π (who sells variance, and what kills those businesses), see [`references/patterns-scenarios-traps.md` § Edge-over-appetite business models](../../../references/patterns-scenarios-traps.md#edge-over-appetite-business-models).
+
 ## When to Use
 
 - Writing pricing copy where the same value can be framed as gain or loss prevention.

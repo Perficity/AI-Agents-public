@@ -2,9 +2,9 @@
   "metadata": {
     "title": "AI Behavioral Economics Foundations — Sources",
     "description": "Primary papers and references for 16 behavioral-economics and behavior-design primitives: prospect theory, loss aversion, anchoring, defaults, social proof, scarcity, hyperbolic discounting, mental accounting, choice architecture, dual-system cognition, decoy effect, habit loop, reinforcement schedules, cognitive load and working memory, context-dependent retrieval, and implementation intentions.",
-    "last_updated": "2026-08-14",
+    "last_updated": "2026-08-29",
     "skill": "foundations-behavioral-economics",
-    "total_sources": 68
+    "total_sources": 71
   },
   "primary_papers": [
     {
@@ -560,6 +560,22 @@
       "name": "Fixing Frictions: Sludge Audits Around the World",
       "url": "https://oecd-opsi.org/publications/fixing-frictions-sludge-audits-around-the-world/",
       "description": "OECD Observatory of Public Sector Innovation (2024). Published July 2024. Public governance policy paper. Codifies repeatable sludge audit methodology: behavioural journey mapping, four friction cost categories (search, decision, cognitive, emotional), nine good-practice principles. Draws on International Sludge Academy case studies involving 16 governments across 14 countries. Directly supports the Sludge Audit recipe. Evidence grade B (practitioner methodology with 10+ case studies; not a controlled RCT). Verified: OECD OPSI page confirmed title, organization, year, and methodology elements.",
+      "add_as_web_search": false,
+      "url_check": "manual"
+    },
+    {
+      "id": "MiFIR-PFOF-Art39a",
+      "name": "MiFIR Art. 39a — Payment for Order Flow Prohibition (Regulation (EU) 2024/791)",
+      "url": "https://www.esma.europa.eu/sites/default/files/2024-03/ESMA35-335435667-5923_List_of_EU_Member_States_using_temporary_exemption_from_PFOF_prohibition_under_the_MiFIR_review.pdf",
+      "description": "MiFIR review (Regulation (EU) 2024/791, in force 28 March 2024) inserts Art. 39a prohibiting investment firms from receiving payment or benefit for routing retail and opt-in professional client orders to a particular execution venue. Member States where PFOF was already permitted could exempt domestically-served clients until 30 June 2026; Germany was the only Member State to notify ESMA of using the carve-out. PFOF has been prohibited in the UK since 2012 and remains permitted in the US subject to SEC Rule 606 disclosure. Cited as a rung-3 (product reclassification) example in references/patterns-scenarios-traps.md.",
+      "add_as_web_search": false,
+      "url_check": "manual"
+    },
+    {
+      "id": "BelgiumLootBoxEnforcement",
+      "name": "Belgium and Netherlands Loot-Box Reclassification — Status and Enforcement",
+      "url": "https://online.ucpress.edu/collabra/article/9/1/57641/195100/Breaking-Ban-Belgium-s-Ineffective-Gambling-Law",
+      "description": "Xiao, L. Y. (2023). 'Breaking Ban: Belgium's Ineffective Gambling Law Regulation of Video Game Loot Boxes', Collabra: Psychology 9(1). Belgium has treated paid loot boxes as games of chance under its gambling law since 2018; the Belgian Gaming Commission acknowledged enforcement difficulty in a December 2024 report, and a Dutch penalty against EA was overturned on the ground that an in-gameplay mechanic was not a standalone gambling product. Cited for the DIRECTION of product reclassification only — outcomes are contested and must be re-verified before being stated.",
       "add_as_web_search": false,
       "url_check": "manual"
     }

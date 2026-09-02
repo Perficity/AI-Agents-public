@@ -661,6 +661,7 @@ tests:
 ## Related Resources
 
 - [SLO Design Guide](./slo-design-guide.md) - Defining SLOs and error budgets
+- [Predictive (lookahead) burn alerts](./slo-design-guide.md#predictive-lookahead-burn-alerts) - The second burn-alert family, alongside the fixed-threshold multi-window rules used throughout this file. Predictive alerts forecast *when* the budget empties from a baseline window rather than measuring how fast it is burning now; use them when you need lead time to act, and keep the sizing rule in mind — a baseline window extrapolates forward by a factor of four at most before seasonality compensation is required. Do not page from both families on the same SLO at the same severity.
 - [Dashboard Design Patterns](./dashboard-design-patterns.md) - Visualization for observability
 - [Core Observability Patterns](./core-observability-patterns.md) - Metrics, logs, traces fundamentals
 - [Log Aggregation Patterns](./log-aggregation-patterns.md) - Structured logging pipelines

@@ -6,8 +6,9 @@ component swaps). This file is organized as a **limitation -> workaround -> trad
 for each part of the transformer: what breaks, the fix, and what the fix costs. Scope is
 *build-time* (training the weights). Serving-time variants (PagedAttention, speculative
 decoding, quantized inference) belong to
-[ai-llm-inference](../../ai-llm-inference/SKILL.md); MoE/parallelism at scale belong to
-[ai-distributed-training](../../ai-distributed-training/SKILL.md).
+[ai-llm-inference](../../ai-llm-inference/SKILL.md); MoE *parallelism* at scale belongs to
+[ai-distributed-training](../../ai-distributed-training/SKILL.md) — MoE build-time mechanics
+(routing, load balancing, granularity, failure modes) are §5 here.
 
 Many specifics below (which lab uses what, exact ratios) are volatile — flagged "verify";
 the *limitation->workaround structure* is stable.
@@ -137,15 +138,107 @@ instead of two, so width is scaled to ~⅔ to keep the parameter budget (the "×
 
 **Dense-FFN cost limitation -> Mixture-of-Experts.** Replace one big FFN with N expert FFNs and
 route each token to k of them: compute scales with k, not N, so you get many more parameters at
-fixed FLOPs. MoE is the frontier default — but it imports a cluster of build-time failure modes:
+fixed FLOPs. MoE is the frontier default *at frontier scale with an expert-parallel serving stack*;
+below roughly ~10B total params, or on single-GPU/edge serving, a dense model usually wins on
+wall-clock and simplicity (Aug-2026 heuristic — verify against your own serving numbers). It also
+imports a cluster of build-time failure modes:
 
-| MoE failure mode | Workaround |
-|---|---|
-| **Router collapse** (all tokens to a few experts) | Auxiliary **load-balancing loss**; or aux-loss-free bias-based balancing (DeepSeek-V3) |
-| **Dead experts** (never selected) | Load-balancing + noise in routing; expert-dropout |
-| **Saves FLOPs, not VRAM** — all experts must be resident | Budget memory for the *full* parameter count; expert/tensor parallelism |
-| **Training instability / token dropping at capacity** | Capacity factor tuning; z-loss on the router; fine- vs coarse-grained expert count |
-| **Shared-expert vs not** (DeepSeek yes / Qwen3 no) | A design choice — a shared always-on expert captures common patterns; verify per target |
+**The mechanism behind most of them is one feedback loop.** An expert that receives more tokens
+gets more gradient, so it improves faster, so the router assigns it more probability mass — a
+rich-get-richer spiral that ends with a few live experts and a long dead tail. Every balancing
+fix below exists to break that loop, either by penalising imbalance (aux loss) or by biasing
+selection away from overloaded experts.
+
+| MoE failure mode | Workaround | Diagnostic (what to measure) |
+|---|---|---|
+| **Router collapse** (all tokens to a few experts) | Auxiliary **load-balancing loss**; or aux-loss-free bias-based balancing (DeepSeek-V3) | Per-expert token share and **normalised routing entropy** over a step window — collapse shows as entropy falling toward 0 while max share climbs. Metric block: [routing-health-metrics](../../ai-llm-inference/references/moe-expert-parallelism.md#routing-health-metrics) |
+| **Dead experts** (never selected) | Load-balancing + noise in routing; expert-dropout | Count experts with zero dispatched tokens over a window; watch the count trend, not one step |
+| **No real specialisation** — experts are permutation-interchangeable | Finer granularity, shared expert, or accept it: you have an ensemble with a router, not modularity | **Falsifier:** permute two experts' assignments and re-measure loss. If loss barely moves, the experts are interchangeable and there is no modularity to exploit |
+| **Saves FLOPs, not VRAM** — all experts must be resident | Budget memory for the *full* parameter count; expert/tensor parallelism | Compare active vs resident expert params. DeepSeek-V3 at 256 routed experts / top-8 computes 8 but holds 256 resident — a **32× gap** |
+| **Training instability / token dropping at capacity** | Capacity factor tuning; z-loss on the router | Dropped-token rate per layer at the chosen capacity factor |
+| **Shared-expert vs not** (DeepSeek yes / Qwen3 no) | A design choice — a shared always-on expert captures common patterns; verify per target | Ablate: shared-expert share of residual-stream write vs the routed pool |
+
+**Low-batch caveat.** At small batch each active expert's weights are read from HBM to serve very
+few tokens, so MoE decode is bandwidth-bound *per active expert*; the FLOP saving only becomes a
+latency saving above the batch size that amortises those weight reads.
+
+**Router and load-balance loss, concretely.** The Switch/GShard auxiliary loss is
+
+`L_aux = α · N · Σ_i f_i · P_i`
+
+where `N` is the expert count, `f_i` the fraction of dispatched tokens going to expert i, and
+`P_i` the mean router probability assigned to expert i over the batch. Both vectors sum to 1, so a
+perfectly balanced router (`f_i = P_i = 1/N`) gives `L_aux = α·N·N·(1/N²) = α` — the loss floor,
+which is the sanity check to assert in a unit test. `α` is small (Switch Transformer,
+[arXiv 2101.03961](https://arxiv.org/abs/2101.03961); the abstract does not state a value — tune it,
+and check the paper body before quoting one). Runnable sketch (executed on torch 2.13; prints
+`aux 0.010026` for a near-uniform random router and exactly `α` for the balanced case):
+
+```python
+import torch, torch.nn as nn, torch.nn.functional as F
+
+class TopKRouter(nn.Module):
+    """Top-k router + Switch/GShard auxiliary load-balance loss."""
+    def __init__(self, d_model, n_experts, k, alpha=1e-2):
+        super().__init__()
+        self.gate = nn.Linear(d_model, n_experts, bias=False)
+        self.n, self.k, self.alpha = n_experts, k, alpha
+
+    def forward(self, x):                                 # x: (T, d_model)
+        probs = F.softmax(self.gate(x), dim=-1)           # (T, N) router probabilities
+        topv, topi = probs.topk(self.k, dim=-1)           # (T, k) selected experts
+        w = topv / topv.sum(-1, keepdim=True)             # renormalise over the k chosen
+        mask = F.one_hot(topi, self.n).sum(1).float()     # (T, N) dispatch mask
+        f = mask.mean(0) / self.k                         # f_i: fraction of dispatch slots
+        P = probs.mean(0)                                 # P_i: mean router probability
+        return topi, w, self.alpha * self.n * (f * P).sum()
+```
+
+**The alternative: no aux loss at all.** *"Auxiliary-Loss-Free Load Balancing Strategy for
+Mixture-of-Experts"* ([arXiv 2408.15664](https://arxiv.org/abs/2408.15664), the method DeepSeek-V3
+adopts — [arXiv 2412.19437](https://arxiv.org/abs/2412.19437)) applies "an expert-wise bias to the
+routing scores of each expert" for *selection only*, adjusted up or down by each expert's recent
+load; the gating weights themselves are untouched. Motivation, verbatim from the abstract: "a large
+auxiliary loss will introduce non-negligible interference gradients into training and thus impair
+the model performance."
+
+**The five-axis MoE design space** (as of Aug 2026). The survey *"The Evolution of Mixture-of-Experts
+Architectures in Large Language Models: Routing, Topology, Load Balancing, and Expert Parallelism"*
+(Li, [arXiv 2608.08650](https://arxiv.org/abs/2608.08650)) organizes modern MoE systems along **five
+coupled dimensions**. Useful as a checklist: a from-scratch MoE decision is really five decisions, and
+they interact.
+
+| Axis | The question it settles | Design example |
+|---|---|---|
+| **Expert granularity** | Few wide experts or many narrow ones at fixed active-FLOPs? | Fine-grained: DeepSeek-V3 uses 256 routed experts, top-8 per token (verified from its `config.json`: `n_routed_experts: 256`, `num_experts_per_tok: 8`) |
+| **Expert topology** | How experts are arranged/shared — always-on shared experts, per-layer independence, tying across layers | DeepSeek-V3 and Kimi-K2 both carry `n_shared_experts: 1` alongside the routed pool; Qwen3-MoE's config declares no shared-expert field |
+| **Routing freedom** | How unconstrained the router is — plain top-k, device/node-limited routing, expert-choice | Top-k gating with node-limited routing constrains the all-to-all fan-out |
+| **Scope of load balancing** | Per-batch, per-sequence, or aggregate/global balance — and enforced by aux loss or by bias | Aux-loss-free bias-based balancing (DeepSeek-V3) vs a classic auxiliary load-balancing loss |
+| **Execution structure** | How the routed compute is actually laid out and parallelized across devices | Expert parallelism + all-to-all; see [ai-llm-inference moe-expert-parallelism.md](../../ai-llm-inference/references/moe-expert-parallelism.md) |
+
+The survey frames these as *coupled*: granularity is not free, because finer experts raise routing and
+all-to-all traffic. Serve-side, that coupling is the dominant cost term — treat expert count as a joint
+build/serve decision, not a build-time-only one.
+
+**Fine-grained + shared-expert is the prevailing 2026 trend** — many small routed experts, low top-k,
+plus (usually) one always-on shared expert to absorb common patterns. Verified expert counts, each read
+from the model's own published `config.json` (Aug 2026):
+
+| Model | Routed experts | Shared | Active per token |
+|---|---|---|---|
+| **DeepSeek-V3** | 256 | 1 | top-8 routed |
+| **Qwen3-MoE** (235B-A22B) | 128 | none declared in config | top-8 routed |
+| **Kimi-K2** | 384 | 1 | top-8 routed |
+
+Note the direction: expert *count* has grown (128 → 256 → 384) while top-k stayed at 8 — that is the
+granularity axis being pushed, with active FLOPs roughly held.
+
+**Tied expert layers** — *"Tying the Loop: Tied Expert Layers in Mixture-of-Experts Language Models"*
+([arXiv 2606.16825](https://arxiv.org/abs/2606.16825)) shares expert parameters across *consecutive*
+transformer layers while keeping independent per-layer routing and attention, cutting MoE memory
+footprint roughly 2× (authors' claim). This sits on the topology axis and is adjacent to the
+depth/weight-sharing family covered in
+[adaptive-depth-and-conditional-compute.md](adaptive-depth-and-conditional-compute.md).
 
 **Rule:** the FFN is where you spend parameters. Use **SwiGLU**. Move to **MoE** only when
 cost-at-scale justifies the routing machinery — and hand the routing/parallelism depth to
@@ -188,11 +281,14 @@ and underflow show up as loss spikes and NaNs.
 |---|---|---|
 | **fp16** | Small exponent range -> activation/gradient **overflow**, loss spikes on older stacks | **Loss/gradient scaling** (GradScaler); keep a master fp32 copy |
 | **bf16** (default) | Wider exponent, lower mantissa precision | Standard for training; run norm/softmax **reductions in fp32** |
-| **fp8** (frontier) | Tensor-core accumulation is low-bit; naive fp8 destabilizes | DeepSeek-V3: **blockwise/group-128 scaling + fp32 accumulation every few WGMMA**; first validated 671B-MoE fp8 run (Hopper). ~2× memory vs bf16. Verify hardware/kernel support |
-| **fp4 (MXFP4 / NVFP4)** (emerging 2026) | **Activation & gradient outliers** dominate the 4-bit range and destabilize training | Micro-block scaling, outlier control/clipping, oscillation suppression; near-fp8 accuracy reported at 12B. Treat as research-grade — verify before betting a run |
+| **fp8** (production on Hopper+) | Tensor-core accumulation is low-bit; naive per-tensor fp8 destabilizes | DeepSeek-V3: **blockwise/group-128 scaling + high-precision accumulation**, loss within ~0.25% of bf16; first validated 671B-MoE fp8 run (Hopper). fp8 tensors are ~2× smaller than bf16 — total training memory does **not** halve, since master weights and optimizer state stay high-precision. Reachable via `torchao.float8` or TransformerEngine without hand-written kernels |
+| **fp4 (MXFP4 / NVFP4)** (Blackwell) | **Activation & gradient outliers** dominate the 4-bit range and destabilize training | Micro-block scaling, outlier control/clipping, oscillation suppression. NVFP4 has a real pretraining result — 12B on 10T tokens matching the fp8 baseline (arXiv 2509.25149); MXFP4 needed ~36% more tokens for the same loss. Less battle-tested and more recipe-sensitive than fp8 |
 
-**Rule:** train in **bf16** by default; keep reductions in fp32. fp8 is a deliberate,
-infra-heavy decision (custom scaled kernels), not a flag; fp4 is bleeding-edge.
+**Rule:** train in **bf16** by default; keep reductions in fp32. fp8 is production-proven on
+Hopper+ with a validated recipe, but still demands a bf16 loss-parity check on your own
+workload — the hard part is validation, not implementation. fp4 has a genuine 10T-token
+result; treat the recipe, not the format, as the open risk. Multi-GPU specifics and the
+per-tensor recipe details stay with [ai-distributed-training](../../ai-distributed-training/SKILL.md).
 
 ## 8. Long-Context at Build Time
 

@@ -1,10 +1,10 @@
 {
   "metadata": {
     "title": "AI Distributed Systems Foundations — Sources",
-    "description": "Primary papers and references for 11 distributed-systems primitives: CAP/PACELC, FLP impossibility, Paxos, Raft, vector clocks, CRDTs, idempotency, leases/fencing, quorums, causal consistency, and broadcast protocols",
-    "last_updated": "2026-08-14",
+    "description": "Primary papers and references for 11 distributed-systems primitives: CAP/PACELC, FLP impossibility, Paxos, Raft, vector clocks, CRDTs, idempotency, leases/fencing, quorums, causal consistency, and broadcast protocols (including failure-detector taxonomy)",
+    "last_updated": "2026-08-24",
     "skill": "foundations-distributed-systems",
-    "total_sources": 34
+    "total_sources": 35
   },
   "research_papers": [
     {
@@ -243,6 +243,13 @@
       "name": "CoAgent: Concurrency Control for Multi-Agent Systems",
       "url": "https://arxiv.org/abs/2606.15376",
       "description": "Lyu, Zhang, Wu, Wei, Chen. arXiv:2606.15376, June 2026 preprint (not peer-reviewed; cited for its diagnosis rather than as a settled result). Argues 2PL and OCC fit agent workloads badly because agent transactions span long inference, have broad opaque read sets, and write unbuffered through tools. Proposes MTPO (Monotonic Trajectory Pre-Order): fix a serialization order at launch, serve order-filtered reads, apply writes speculatively in place over undoable tools. Reports within 5% of serial correctness at 1.4x speedup. Relevant to primitives #6, #7, #10.",
+      "url_check": "manual"
+    },
+    {
+      "id": "Petrov2019",
+      "name": "Database Internals: A Deep Dive into How Distributed Data Systems Work",
+      "url": "https://www.databass.dev/",
+      "description": "Petrov 2019. Part II covers failure detection (Ch.9: heartbeats/pings, timeout-free heartbeat counters, SWIM outsourced heartbeats, phi-accrual, gossip-style detection, FUSE), leader election, replication, and consensus. Primary source for the failure-detector taxonomy in primitive #11.",
       "url_check": "manual"
     }
   ]

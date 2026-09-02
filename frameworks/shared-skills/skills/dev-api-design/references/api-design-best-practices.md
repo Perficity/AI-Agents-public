@@ -51,6 +51,7 @@ Comprehensive guide to building scalable, maintainable, and developer-friendly A
 - [Apache Bench](#apache-bench)
 - [wrk](#wrk)
 - [Security Testing](#security-testing)
+- [Consumer Profile: Data Scientists](#consumer-profile-data-scientists)
 - [Common Anti-Patterns](#common-anti-patterns)
 - [1. Verbs in URLs](#1-verbs-in-urls)
 - [2. Ignoring HTTP Methods](#2-ignoring-http-methods)
@@ -557,6 +558,26 @@ wrk -t12 -c400 -d30s https://api.example.com/users
 - OWASP ZAP - Automated security scans
 - Burp Suite - Manual penetration testing
 - Postman - API functional testing
+
+---
+
+## Consumer Profile: Data Scientists
+
+Data scientists are a distinct API consumer with requirements that a browser-facing or mobile-app consumer never generates. They pull data into notebooks and dataframes, join it against other sources, and feed it to recurring pipelines. Design tips below follow Ryan Day, *Hands-On APIs for AI and Data Science* (O'Reilly, 2025), ch. 1 — directional, no magnitudes claimed.
+
+**Return JSON, not XML.** JSON maps directly onto the lists and dictionaries that are fundamental Python structures, and the Python and R ecosystems have strong parsing support. Most web APIs already do this; the point is not to regress to XML for an analytics audience.
+
+**Ship an SDK.** Data scientists install libraries with `pip` and `conda` as a matter of habit. A published client library is easier for them than hand-rolled HTTP calls, and it gives you a place to enforce correct pagination, retry, and auth handling rather than hoping every consumer implements it. It is also where you put the docstrings that explain what each call means.
+
+**Use standard external identifiers.** Analytics work combines your data with other sources in one visualization or pipeline. Industry-standard identifiers (ISIN, LEI, ISO country codes, GTIN, whatever your domain's registry is) let a consumer join across sources without maintaining a crosswalk table. An internal surrogate key alone forces every consumer to build their own mapping.
+
+**Conform strictly to declared types.** This is the requirement most often underweighted, because the failure is invisible to web consumers. An invalid character in a text field renders fine on a web page; an invalid number in a numeric field can make the whole record unusable for a calculation or a model. Programmatic consumers do not squint past bad data — they raise, or worse, silently coerce. Data returned must conform to its OpenAPI-declared type, and that conformance belongs in contract tests, not just in documentation.
+
+**Provide a bulk-download endpoint.** When a data scientist first explores a dataset or trains a model, they typically want the full contents. Paginating a large dataset through the regular API strains both your infrastructure and their local environment, producing timeouts and memory overflows. A bulk-download capability sidesteps this and is equally useful for the initial full load of a new data pipeline. Serve CSV and Apache Parquet — Parquet in particular is columnar and compressed, so it is what a large-dataset consumer actually wants.
+
+**Support a last-changed-date query parameter.** After the initial full load, pipelines move to incremental mode: a recurring job (commonly daily) pulls only the deltas. Without a `updated_since` / `changed_after` parameter, the only way to detect changes is to re-pull everything and diff it, which is exactly the load the bulk endpoint was meant to bound. Expose a monotonically updated last-changed timestamp on the record, make it filterable, and document its semantics — inclusive or exclusive bound, clock source, and whether deletions are represented (a soft-delete tombstone) or simply vanish, which silently corrupts every downstream pipeline that only ever adds rows.
+
+Two of these interact: bulk download plus a delta parameter is one coherent pattern, not two features. Bulk download answers "get me everything once"; the delta parameter answers "keep me current cheaply". Shipping only the first leaves consumers re-downloading the full dataset on every schedule tick.
 
 ---
 

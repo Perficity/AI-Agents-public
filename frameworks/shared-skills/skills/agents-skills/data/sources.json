@@ -2,10 +2,10 @@
   "metadata": {
     "title": "Agent Skills - Sources",
     "description": "Official sources for portable skill authoring plus runtime-specific verification",
-    "last_updated": "2026-07-11",
-    "updated": "2026-07-11",
+    "last_updated": "2026-08-31",
+    "updated": "2026-08-31",
     "skill": "agents-skills",
-    "total_sources": 21
+    "total_sources": 23
   },
   "official_documentation": [
     {
@@ -67,6 +67,13 @@
       "url": "https://x.com/trq212/article/2033949937936085378",
       "description": "First-party engineering post from Claude Code lead on 9 skill categories and operational patterns from Anthropic internal use",
       "add_as_web_search": false
+    },
+    {
+      "name": "Anthropic: The new rules of context engineering for Claude 5 generation models",
+      "url": "https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models",
+      "description": "Primary source (Thariq, Claude Code team, 2026-07-24): ~80% of Claude Code's system prompt removed for Claude 5-gen models (Opus 5, Fable 5) with no eval loss. Six shifts: rules->judgment, examples->interface design, upfront->progressive disclosure, repetition->single tool-description home, manual CLAUDE.md->auto-memory, markdown specs->rich references (HTML/code/rubrics). Recommends lightweight CLAUDE.md (gotchas only), non-overconstraining skills, /doctor to rightsize context.",
+      "published": "2026-07-24",
+      "add_as_web_search": true
     }
   ],
   "official_examples": [
@@ -125,6 +132,12 @@
       "url": "https://codex-marketplace.com/skills",
       "description": "Codex skill marketplace; notable for Dimillian's macOS/iOS skills as cross-runtime skill design references",
       "add_as_web_search": true
+    },
+    {
+      "name": "ponytail (DietrichGebert)",
+      "url": "https://github.com/DietrichGebert/ponytail",
+      "description": "Multi-platform lazy-senior-dev skill pack; source of the intensity-dial (lite/full/ultra) skill-design pattern in references/skill-patterns.md. Pinned commit 2ed6c52c, MIT, extracted 2026-08-09 (docs/research/2026-08-09-skill-ponytail-scan.md).",
+      "add_as_web_search": false
     }
   ],
   "architecture_patterns": [

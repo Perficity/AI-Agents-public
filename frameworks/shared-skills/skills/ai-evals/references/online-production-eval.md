@@ -100,7 +100,9 @@ Alert on drift; don't wait for the quarterly review.
 - **Explicit signals** (thumbs, ratings) are sparse and biased toward extremes —
   useful as a trend, weak as ground truth.
 - **Implicit signals** (edits, retries, copy, abandonment, follow-up "no that's
-  wrong") are denser and often more honest. Instrument them.
+  wrong") are denser and often more honest. Instrument them. For the full
+  taxonomy of conversational signals, how to read each one, and how user edits
+  become preference pairs, see `conversational-feedback-signals.md`.
 - Route a sampled stream to human reviewers to maintain a fresh labeled set —
   this is what keeps the online judge calibrated (see `advanced-judging.md`) and
   what new offline cases are drawn from.

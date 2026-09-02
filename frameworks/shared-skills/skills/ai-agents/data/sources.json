@@ -2,7 +2,7 @@
   "metadata": {
     "skill": "ai-agents",
     "updated": "2026-07-11",
-    "total_sources": 56,
+    "total_sources": 58,
     "description": "Curated primary sources for production agent systems: architecture, protocols, tool design, evaluation, observability, and economics.",
     "version": "5.4",
     "title": "AI Agents - Sources",
@@ -176,6 +176,15 @@
       }
     ],
     "implementation_docs_and_playbooks": [
+      {
+        "name": "Michael Albada, Building Applications with AI Agents (O'Reilly, 2025)",
+        "url": "https://www.oreilly.com/library/view/building-applications-with/9798341622906/",
+        "type": "book",
+        "relevance": "Ch. 5 covers tool selection at scale (standard vs. semantic vs. hierarchical) and the tool-topology ladder with its bounding rules (cap chain length, cap graph depth and branching factor). Ch. 8 supplies the escalation gate: exhaust hierarchical grouping and semantic retrieval inside one agent before decomposing into multiple agents.",
+        "update_frequency": "static",
+        "access": "paid",
+        "add_as_web_search": false
+      },
       {
         "name": "The Machine that Builds the Machine — Symphony (@daniel_mac8)",
         "url": "https://x.com/daniel_mac8/status/2034344165211832481",

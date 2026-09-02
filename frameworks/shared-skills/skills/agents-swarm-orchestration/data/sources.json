@@ -2,32 +2,32 @@
   "metadata": {
     "title": "Agents Swarm Orchestration - Sources",
     "description": "Official documentation, research, and secondary references for multi-agent orchestration across Claude Code, Codex, and OpenAI Agents SDK",
-    "last_updated": "2026-08-15",
-    "updated": "2026-08-15",
+    "last_updated": "2026-08-27",
+    "updated": "2026-08-27",
     "skill": "agents-swarm-orchestration",
-    "total_sources": 38
+    "total_sources": 41
   },
   "official_documentation": [
     {
       "name": "Claude Code Subagents Documentation",
       "url": "https://code.claude.com/docs/en/sub-agents",
-      "description": "Official Claude Code guide for subagents, capabilities, isolation, and context management. Basis for the Aug 2026 vocabulary pass: background-by-default since ~2026-07 (v2.1.195+) and subagent-spawns-subagent nesting (June 2026, chains capped at 5 levels).",
+      "description": "Official Claude Code guide for subagents, capabilities, mode-dependent background execution, worktree isolation, context forking, and the current three-layer default nesting limit.",
       "add_as_web_search": true,
-      "verified": "2026-08-15"
+      "verified": "2026-08-27"
     },
     {
       "name": "Claude Code Agent Teams Documentation",
       "url": "https://code.claude.com/docs/en/agent-teams",
-      "description": "Official Claude Code guide for coordinating multiple Claude Code sessions with shared tasks and messaging. Aug 2026: still experimental behind CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, behavior churning weekly; ~/.claude/teams/ is runtime state, not an authored artifact.",
+      "description": "Official Claude Code guide for experimental agent teams, peer messaging, shared tasks, teammate limitations, automatic lifecycle, and cross-session messaging.",
       "add_as_web_search": true,
-      "verified": "2026-08-15"
+      "verified": "2026-08-27"
     },
     {
       "name": "Claude Code Cross-Session Messaging",
-      "url": "https://code.claude.com/docs/en/cross-session-messaging",
-      "description": "Aug 2026 (macOS/Linux): independent Claude Code sessions message each other without forming a team. Lighter alternative to agent teams when only findings need to cross a session boundary. Basis for execution-surfaces.md §Cross-Session Messaging.",
+      "url": "https://code.claude.com/docs/en/agent-teams",
+      "description": "The agent-teams documentation also covers messaging independent Claude Code sessions without forming a team, including remote and platform-specific constraints.",
       "add_as_web_search": true,
-      "verified": "2026-08-15"
+      "verified": "2026-08-27"
     },
     {
       "name": "Anthropic Claude Code Best Practices",
@@ -37,14 +37,14 @@
     },
     {
       "name": "Codex Multi-Agents",
-      "url": "https://developers.openai.com/codex/concepts/multi-agents",
-      "description": "Official OpenAI Codex guidance for main-thread focus, parallel workers, and read-heavy fan-out",
+      "url": "https://learn.chatgpt.com/docs/agent-configuration/subagents",
+      "description": "Official Codex guidance for custom agents, main-thread ownership, parallel workers, read-heavy fan-out, and orchestration primitives",
       "add_as_web_search": true
     },
     {
       "name": "Codex Subagents",
-      "url": "https://developers.openai.com/codex/subagents",
-      "description": "Official Codex subagent documentation: TOML config, concurrency settings, custom agents, sandbox inheritance, CSV batch processing",
+      "url": "https://learn.chatgpt.com/docs/config-file/config-reference",
+      "description": "Official Codex configuration reference for custom-agent and concurrency settings; undocumented batch or nesting keys are not treated as portable contracts",
       "add_as_web_search": true
     },
     {
@@ -121,6 +121,12 @@
       "description": "2026 arXiv paper establishing the budget-conservation invariant (child agent budgets are strict subsets of the parent's remaining budget) cited in SKILL.md §Operating Principles for per-worker budget enforcement.",
       "add_as_web_search": false,
       "verified": "2026-07-11"
+    },
+    {
+      "name": "Antonio Gulli, Agentic Design Patterns (Springer, 2025) - Ch. 17 Reasoning Techniques",
+      "url": "https://link.springer.com/book/10.1007/979-8-8688-1980-1",
+      "description": "Book chapter presenting Chain of Debates (CoD) and its non-linear successor Graph of Debates (GoD): typed supports/refutes edges over argument nodes, branching and merging lines of inquiry, conclusion as the best-supported cluster, and the ground-truth > search-grounded > multi-model-consensus evidence rubric. Basis for the Graph of Debates extension in SKILL.md.",
+      "add_as_web_search": false
     }
   ],
   "community_resources": [
@@ -247,6 +253,18 @@
       "name": "Graphs vs. Loops: Agentic AI Orchestration Debate 2026 (explainx.ai)",
       "url": "https://explainx.ai/blog/graphs-vs-loops-agentic-ai-debate-linear-andrew-ng-2026",
       "description": "July 2026 industry debate framing graph-structured vs loop-structured agent orchestration",
+      "add_as_web_search": true
+    },
+    {
+      "name": "Bun: Rewriting Bun in Rust (Zig-to-Rust port case study)",
+      "url": "https://bun.com/blog/bun-in-rust",
+      "description": "Primary case study (2026-07): ~535K lines Zig->Rust in 11 days, ~50 dynamic Claude Code workflows, peak 64 concurrent agents across 4 worktrees, ~$165K API-pricing equivalent (5.9B uncached input / 690M output / 72B cached-read tokens), 6,502 commits. Method: old code as frozen behavioral reference; failures fed back into the generation process, not hand-patched. Cited in typical-scenarios.md Deep Walkthrough 1 as the scale upper bound.",
+      "add_as_web_search": true
+    },
+    {
+      "name": "The Register: Zig creator calls Bun's Claude Rust rewrite 'unreviewed slop'",
+      "url": "https://www.theregister.com/devops/2026/07/14/zig-creator-calls-buns-claude-rust-rewrite-unreviewed-slop/5270743",
+      "description": "Counterpoint to the Bun case study: post-ship regressions (19 fixed) and review-debt critique. Evidence that at fleet scale the binding constraint shifts from agent throughput to human review capacity.",
       "add_as_web_search": true
     }
   ]

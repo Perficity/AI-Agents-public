@@ -17,6 +17,7 @@
 - [A10 — Retrofitting citations](#a10--retrofitting-citations)
 - [A11 — Overweighting recency](#a11--overweighting-recency)
 - [A12 — Storing evidence with synthesis](#a12--storing-evidence-with-synthesis)
+- [A13 — Treating the open-access corpus as the field](#a13--treating-the-open-access-corpus-as-the-field)
 
 ## Anti-Pattern Index
 
@@ -34,6 +35,7 @@
 | A10 | Retrofitting citations | Citations added after synthesis is complete | P1, P7 |
 | A11 | Overweighting recency | Most recent blog post outweights older primary doc | P5, P6 |
 | A12 | Storing evidence with synthesis | Raw evidence and final memo in the same retrieval bucket | P6, P1 |
+| A13 | Treating the open-access corpus as the field | Ledger is 100% freely accessible sources; no null or negative results present | P6, P8 |
 
 ---
 
@@ -190,3 +192,21 @@
 - Future search passes retrieve model-generated summaries as top hits.
 
 **Resolution**: maintain separate artifacts — `source-ledger.jsonl`, `working-notes.md`, `synthesis-final.md` — and ingest only the ledger into retrieval systems (P1, P6).
+
+---
+
+## A13 — Treating the open-access corpus as the field
+
+**Description**: a literature-mining agent reports on what it could reach, and the reader takes that for what exists. Two gaps are structural, not incidental. **Paywalled prior work** is invisible: an agent restricted to open-access literature can miss the critical prior result and will not know it missed it — the absence looks identical to novelty. **Negative results are largely unpublished**: the experiments that failed, the approaches already ruled out, the dead ends an experienced practitioner carries in their head rarely enter the record at all.
+
+The compound effect is directional, not random noise. Both gaps remove *discouraging* evidence and leave the encouraging evidence in place, so the output is systematically biased toward hypotheses that **look promising** — including ones the field already tried and abandoned. This bites hardest in hypothesis generation (see the Co-Scientist role taxonomy in `SKILL.md`), where a novelty check run over a partial corpus is an unreliable novelty check, and a ranking tournament will happily promote a rediscovered dead end.
+
+**Detection signals**:
+- Every ledger entry resolves to a freely accessible URL; no paywalled or institutional sources are recorded even as `unreachable`.
+- The ledger contains no null results, retractions, failed replications, or "this did not work" reports.
+- A novelty or "no prior work" claim rests on absence of evidence rather than a scoped search that is stated.
+- The research goal is in a domain (biomedical, materials, clinical) where the primary literature is substantially subscription-gated.
+
+**Resolution**: state the corpus boundary in the research plan as an explicit limitation, not a footnote — name what the agent could not reach. Record known-but-unreachable sources as ledger entries with `access: paywalled` so the gap is visible and countable rather than silent. Never let "no prior work found" stand as a novelty finding; downgrade it to "no prior work found in [named accessible corpus]". Where the decision is expensive, route the novelty check to a human with institutional access or domain memory of what has already failed. Treat unpublished negative results as a permanent blind spot no amount of additional searching closes.
+
+**Sources**: stated limitations of Google Research's AI co-scientist (2025), as described in Gulli, *Agentic Design Patterns* (Springer, 2025), Ch. 21.

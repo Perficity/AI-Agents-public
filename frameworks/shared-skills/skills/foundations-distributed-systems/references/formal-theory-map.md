@@ -31,10 +31,22 @@ Use this map when a design claim depends on timing, failure, ordering, or consis
 
 - Safety: nothing bad happens; for example, no two leaders commit conflicting log entries.
 - Liveness: something good eventually happens; for example, a valid proposal eventually commits.
-- Linearizability: operations appear to occur atomically in real-time order.
-- Serializability: transactions are equivalent to some serial order; real-time order is not necessarily preserved.
+- Linearizability: operations appear to occur atomically in real-time order. Scope: a single object — see "Linearizability vs. serializability" below.
+- Serializability: transactions are equivalent to some serial order; real-time order is not necessarily preserved. Scope: multi-object transactions — see below.
 - Causal consistency: causally related writes are observed in happens-before order.
 - Eventual consistency: replicas converge if writes stop and messages are delivered.
+
+### Linearizability vs. Serializability (decide which one the claim needs)
+
+They are not stronger/weaker versions of each other; they answer different questions. Serializability is "an isolation property of transactions, where every transaction may read and write multiple objects." Linearizability is "a recency guarantee on reads and writes of a register (an individual object)" — it "doesn't group operations together into transactions, so it does not prevent problems such as write skew."
+
+- Need multi-object invariants held (no write skew, no phantoms)? That is **serializability**.
+- Need a read to reflect the latest committed write in real time (leader election, uniqueness constraints, locks, cross-channel comms)? That is **linearizability**.
+- Need both? The combination is "strict serializability or strong one-copy serializability (strong-1SR)"; 2PL and actual serial execution "are typically linearizable."
+
+**The sharp case that separates them:** serializable snapshot isolation (SSI) is serializable but *not* linearizable. "By design, it makes reads from a consistent snapshot, to avoid lock contention between readers and writers. The whole point of a consistent snapshot is that it does not include writes that are more recent than the snapshot, and thus reads from the snapshot are not linearizable." So "we run SSI" answers the isolation question and leaves the recency question open — a stale-read complaint under SSI is not an isolation bug.
+
+*Source: Kleppmann, Designing Data-Intensive Applications (2017), Ch.9, sidebar "Linearizability Versus Serializability", printed p.329 (PDF p.351).*
 
 ## Evidence Standards
 

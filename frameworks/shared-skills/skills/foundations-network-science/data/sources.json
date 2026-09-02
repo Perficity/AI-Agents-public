@@ -1,10 +1,10 @@
 {
   "metadata": {
     "title": "AI Network Science Foundations — Sources",
-    "description": "Primary papers and references for 11 canonical network-science primitives: centrality, PageRank, community detection, small-world, scale-free, percolation, SIR contagion, link prediction, graph clustering, graph embeddings, and temporal networks",
-    "last_updated": "2026-08-14",
+    "description": "Primary papers and references for 12 canonical network-science primitives: centrality, PageRank, community detection, small-world, scale-free, percolation, SIR contagion, link prediction, graph clustering, graph embeddings, temporal networks, and graph schema design",
+    "last_updated": "2026-08-24",
     "skill": "foundations-network-science",
-    "total_sources": 40
+    "total_sources": 41
   },
   "textbooks": [
     {
@@ -26,6 +26,15 @@
       "name": "Networks, Crowds, and Markets: Reasoning about a Highly Connected World",
       "url": "https://www.cs.cornell.edu/home/kleinber/networks-book/",
       "description": "David Easley and Jon Kleinberg (2010). Cambridge University Press. Open-access. Game theory, network formation, auctions, PageRank, cascades, power laws, small worlds. Primary reference for primitives #2, #4, #5, #7, #8.",
+      "add_as_web_search": false
+    },
+    {
+      "id": "BroadwaterStillman2025GNNInAction",
+      "name": "Graph Neural Networks in Action",
+      "url": "https://www.manning.com/books/graph-neural-networks-in-action",
+      "description": "Keita Broadwater and Namid Stillman (2025). Manning Publications, 543 pp. Practitioner text on applied GNNs. Sections carried into this skill: §1.4–1.4.3 three criteria for identifying a GNN problem in data that is not obviously graph-shaped (implicit relationships and interdependencies; high dimensionality and sparsity including cold-start; complex nonlocal interactions), with key-indicator questions per criterion; §4.3–4.4.3 baseline-first discipline (non-GNN baselines, then GCN, then GAT) and the direction-only GAT-vs-XGBoost selection rule (XGBoost for efficiency and speed under limited compute; GAT/GNN where internode relational structure is pivotal); §4.5.2 over-smoothing extension — 'problem radius' as a second cause via long-range dependency tasks, plus per-architecture risk ordering (GraphSAGE's fixed-size sampling mitigates, GCN more at risk, GAT still local); §7.3.1 scale taxonomy (three up-front levers: hardware, dense-vs-sparse representation, architecture choice; four escape techniques: sampling, parallel/distributed, remote backend, graph coarsening, each with stated cost); §7.6.1 caveat that Big-O comparisons between GNNs are unreliable; §8.2–8.2.4 graph schema design as a modelling discipline (four-step loop, five schema questions, conceptual-vs-system schema, instance model, testing and refactoring). DELIBERATELY EXCLUDED: node-count size thresholds (self-hedged 2025 hardware assumptions), all PyG API surface and module paths, GAT equations. The 4-10x memory-to-data ratio is carried only with the authors' own 'rule of thumb' framing. Predates Graph Foundation Models entirely — does not supersede the GFM content in primitive #10. Maps to primitives #10 and #12. VERIFIED 2026-08-24 against the source PDF.",
+      "url_check": "manual",
+      "last_verified": "2026-08-24",
       "add_as_web_search": false
     }
   ],

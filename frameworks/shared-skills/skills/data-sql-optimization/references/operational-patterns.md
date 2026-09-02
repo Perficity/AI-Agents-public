@@ -9,9 +9,12 @@ Operational guidance for production tuning and safe database changes. This file 
 - [New Features Worth Knowing](#new-features-worth-knowing)
 - [Planner and Estimation](#planner-and-estimation)
 - [Operational Cautions](#operational-cautions)
+- [work_mem Is Per-Node, Per-Connection](#work_mem-is-per-node-per-connection)
+- [Idle in Transaction Blocks DDL, Which Then Blocks Everything](#idle-in-transaction-blocks-ddl-which-then-blocks-everything)
 - [MySQL 9.7 LTS Operational Notes](#mysql-97-lts-operational-notes-ga-2026-04-21)
 - [Optimizer and Statistics](#optimizer-and-statistics)
 - [Reliability and Change Safety](#reliability-and-change-safety)
+- [Online Schema Change: gh-ost vs pt-online-schema-change](#online-schema-change-gh-ost-vs-pt-online-schema-change)
 - [SQL Server 2025 Operational Notes](#sql-server-2025-operational-notes-ga-2025-11-18)
 - [Parameter-Sensitive Workloads](#parameter-sensitive-workloads)
 - [Concurrency](#concurrency)
@@ -55,6 +58,108 @@ Use [template-performance-tuning-worksheet.md](../assets/cross-platform/template
 - monitor autovacuum lag, freeze age, and table bloat
 - do not replace query-shape fixes with blanket `work_mem` increases
 
+### work_mem Is Per-Node, Per-Connection
+
+`work_mem` is not a per-connection budget and is definitely not a server-wide one. It
+is the limit for **each node of the execution plan for each running query**. A single
+query with several sorts and hash joins can allocate `work_mem` several times over, and
+every concurrent session does the same independently.
+
+The math that matters for OOM risk is therefore:
+
+```text
+worst-case memory ≈ work_mem × (plan nodes needing memory) × (concurrent queries)
+```
+
+Angelakos demonstrates this concretely: with `work_mem = 2GB` and 1,000 connections on
+a 16 GB instance, *"we potentially allocated 2 GB of RAM for each node of the execution
+plan for each running query"* (*PostgreSQL Mistakes and How to Avoid Them*, §6.2,
+p. 103) — and the Linux OOM killer terminated a backend within seconds of the load
+starting.
+
+Why an OOM kill is worse than it looks: PostgreSQL responds to a killed backend by
+terminating all other active backends, because shared memory may be corrupt, then
+enters crash recovery. That can cascade into a failover. The OOM killer also picks its
+victim by OOM score, so it may kill some other critical process rather than the
+offending backend.
+
+Additional factors when sizing:
+
+- **`hash_mem_multiplier`** scales the limit for hash-based nodes (hash joins, hash
+  aggregation) relative to `work_mem`, so those nodes get `work_mem ×
+  hash_mem_multiplier`. It defaults to a value above 1 in current PostgreSQL versions —
+  check your version's default, and include the multiplier in the worst-case math for
+  hash-heavy plans.
+- **Parallel query** multiplies again: each parallel worker gets its own allocation for
+  its own nodes.
+
+Practical approach: set a conservative global `work_mem` sized for ordinary queries,
+and raise it per session for the specific reporting or batch queries that need it —
+`work_mem` can be `SET` at session level. The tradeoff is real in both directions: too
+small and sorts and aggregations spill to temporary files on disk, which is orders of
+magnitude slower than memory; too large and the server dies. There is no formula that
+avoids testing against a representative workload.
+
+The same caution applies to `shared_buffers`: the widely repeated "25% of RAM" figure
+is a starting point, not a rule. Angelakos notes an OLTP workload may benefit from
+large shared memory that holds the working set, while the same setting is wasted on an
+OLAP workload that visits each buffer once. Also verify units — bare integers for
+`shared_buffers` mean 8 kB buffers, not megabytes.
+
+### Idle in Transaction Blocks DDL, Which Then Blocks Everything
+
+This is the single most common way a healthy-looking database stalls completely, and
+the cause is often a developer's forgotten psql session.
+
+The cascade, from Angelakos §6.5.1 (pp. 110–112):
+
+1. **Client A** runs `BEGIN; SELECT * FROM mytable;` and then does nothing. The
+   transaction stays open, holding an `ACCESS SHARE` lock — the weakest lock there is.
+   It cannot block reads or writes.
+2. **Client B** runs `ALTER TABLE mytable ADD COLUMN ...`, which needs `ACCESS
+   EXCLUSIVE`. That conflicts with `ACCESS SHARE`, so Client B waits.
+3. **Client C** runs `SELECT 1 FROM mytable` — an ordinary read that Client A's lock
+   would never have blocked. It hangs anyway, because it has to queue *behind* the
+   pending `ACCESS EXCLUSIVE` request.
+
+That third step is the non-obvious part and the reason this becomes an outage rather
+than a slow query. Angelakos: *"while Client B waits its turn to obtain the lock it
+needs on mytable, any other transaction or query that needs to access mytable will be
+blocked because they have to queue behind it!"* Every subsequent query on the table
+stalls, and the table is effectively down until Client A commits.
+
+The secondary damage: `idle in transaction` sessions can also prevent autovacuum from
+cleaning up, if they have modified data or run at `REPEATABLE READ` / `SERIALIZABLE`.
+Vacuum cannot remove rows that must stay visible to the open transaction, which drives
+bloat and, over a long enough period, transaction ID wraparound risk.
+
+**Mitigations, in order:**
+
+- **Set `lock_timeout` before every DDL statement.** This is the highest-value control.
+  It makes the DDL give up quickly instead of parking an `ACCESS EXCLUSIVE` request in
+  the queue where it blocks all traffic. Failing fast and retrying is almost always
+  better than an open-ended wait.
+
+  ```sql
+  BEGIN;
+  SET LOCAL lock_timeout = '3s';
+  ALTER TABLE mytable ADD COLUMN description text;
+  COMMIT;
+  ```
+
+- **Set `idle_in_transaction_session_timeout`** so abandoned transactions cannot hold
+  locks indefinitely. The tradeoff: applications that legitimately do processing between
+  `BEGIN` and `COMMIT` need the timeout set above their longest such gap, and must
+  tolerate being disconnected.
+- **Monitor for it.** Alert on `state = 'idle in transaction'` with a large
+  `now() - xact_start` — see the queries in
+  [connection-pooling-patterns.md](connection-pooling-patterns.md#postgresql).
+- **Retry loops for DDL.** With `lock_timeout` set, migrations should retry rather than
+  fail the deploy.
+
+Combine this with the migration checklist below: a schema change that is safe in
+isolation is not safe on a database with long-lived transactions.
+
 ## MySQL 9.7 LTS Operational Notes (GA 2026-04-21)
 
 MySQL 9.7.0 is the current LTS; MySQL 8.4 LTS remains supported. Both are production-grade.
@@ -75,8 +180,53 @@ SET optimizer_switch='hypergraph_optimizer=on';
 ### Reliability and Change Safety
 
 - keep slow query log or Performance Schema visibility enabled
-- use `gh-ost` or `pt-online-schema-change` for large-table DDL where blocking risk matters
 - monitor binlog retention and replica lag as part of change planning
+
+#### Online Schema Change: gh-ost vs pt-online-schema-change
+
+Both `gh-ost` and `pt-online-schema-change` make large-table DDL non-blocking, but they
+do it by different mechanisms, and the choice constrains your schema platform. Start
+by checking whether you need an external tool at all:
+
+> any external tool running your schema changes for you will need to make entire
+> copies of the table you are changing. The tool merely makes the process less
+> impactful and does not require disruptive write locks, but only native DDL in MySQL
+> can alter table schemas without a full table copy.
+>
+> — *High Performance MySQL*, 4th ed., ch. 6, p. 150
+
+So native `INPLACE` / `INSTANT` DDL is the first thing to check. MySQL 8.0 expanded
+native DDL coverage substantially but not universally — primary key changes, charset
+changes, per-table encryption, and adding or removing foreign keys still cannot be done
+with an `INPLACE` alter. Even a supported change on a very large table can roll back if
+InnoDB's internal change log grows too large, and native DDL gives you no throttling
+control. Those are the real reasons to reach for an external tool.
+
+| Aspect | `pt-online-schema-change` | `gh-ost` |
+|--------|---------------------------|----------|
+| Change tracking | Triggers on the live table | Tails the binlog via a replica connection |
+| Write amplification | Yes — trigger fires on every write | No triggers on the live table |
+| Foreign keys | Attempts broader support, with tradeoffs | **Bails entirely** if the table has FKs |
+| Concurrent migrations on one table | Not possible (trigger limits) | Possible |
+| Requires binlog access | No | Yes (row-based preferred) |
+
+The trigger mechanism is where pt-osc's costs come from: every write to the live table
+does extra work for the duration of the copy. That penalty is usually invisible, but at
+high transaction throughput it is measurable and must be watched and throttled. Before
+MySQL 8.0, trigger limits also mean pt-osc cannot run against a table that already has
+a trigger with the same action, and cannot run two migrations on one table at once.
+
+gh-ost avoids all of that by connecting as a replica and consuming row-based
+replication logs as its changelog — no triggers on the production table. The cost is
+the foreign-key restriction, and it is not a small one: **choosing gh-ost is a
+schema-platform commitment.** If you standardize on gh-ost you are committing to a
+database platform without foreign keys, and that decision needs to be enforced in
+schema linting and precommit checks, not left to convention. Botros and Tinley
+recommend gh-ost for teams new to automated schema change *"as long as you are also
+disciplined around not introducing foreign keys."*
+
+Prefer `pt-online-schema-change` when foreign keys already exist and removing them is
+not realistic, or when binlogs are not accessible to the tool.
 
 ## SQL Server 2025 Operational Notes (GA 2025-11-18)
 

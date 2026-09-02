@@ -10,6 +10,7 @@ training or inference complexity that only improves a benchmark proxy.
 - [Method families](#method-families)
 - [Decision ladder](#decision-ladder)
 - [Technique gates](#technique-gates)
+- [Measured case: a confidence scorer can be net-negative](#measured-case-a-confidence-scorer-can-be-net-negative)
 - [Research-scout idea cards](#research-scout-idea-cards)
 - [Composition patterns](#composition-patterns)
 - [Kill criteria](#kill-criteria)
@@ -65,8 +66,8 @@ Run this in order; only climb when the lower rung fails on a real eval:
 | Chain-of-thought style prompting | Encourage decomposed reasoning for hard reasoning tasks | Accuracy lift on reasoning slice; no extra unsupported claims | Reasoning text can be persuasive but wrong |
 | Self-consistency / majority vote | Sample multiple reasoning paths and aggregate final answers | pass@k, marginal lift per extra sample, tie rate | Cost blowup, gains only on benchmark-like tasks |
 | Tree/search over thoughts | Explore candidate intermediate states with a heuristic judge/verifier | Solve rate vs node budget, verifier error, latency | Judge becomes the bottleneck; search over bad thoughts |
-| Reflexion / self-refine | Use feedback to critique and retry without changing weights | Retry lift, error-fix rate, regression on easy cases | Self-feedback can reinforce wrong assumptions |
-| Best-of-N + reranker | Generate candidates, select by reward/judge/verifier | Winner quality vs random candidate, judge agreement | Reward hacking, verbosity/style bias |
+| Reflexion / self-refine | Use feedback to critique and retry without changing weights | Retry lift, error-fix rate, regression on easy cases | Self-feedback can reinforce wrong assumptions; a confidence-based selector can score *below* no selector at all — see [measured case](#measured-case-a-confidence-scorer-can-be-net-negative) |
+| Best-of-N + reranker | Generate candidates, select by reward/judge/verifier | Winner quality vs random candidate, judge agreement; **also measure against no reranker (keep-first / keep-last)** | Reward hacking, verbosity/style bias; likelihood-based rerankers select fluent-but-wrong answers |
 | Self-Instruct / Evol-Instruct | Bootstrap diverse instructions, then filter and train | Diversity, dedupe, hard-slice coverage, human spot-checks | Synthetic style collapse, self-training error inheritance |
 | LIMA-style curation | Prefer few excellent examples over many noisy ones | Lift per example, author diversity, slice balance | Too narrow or author-style-specific examples |
 | RAFT / retrieval-aware tuning | Train the model to answer from retrieved docs, including distractors | Grounded answer rate, citation support, distractor robustness | Encoding stale facts into weights |
@@ -77,6 +78,69 @@ Run this in order; only climb when the lower rung fails on a real eval:
 | LoRA / QLoRA | Adapt open models cheaply via adapters/quantized adapters | Same behavioral gates as the objective; adapter merge parity | Capacity too low, target modules wrong, quantization regressions |
 | Distilling step-by-step | Train smaller student with labels plus teacher rationales | Student quality/cost Pareto, rationale usefulness, safety replay | Distilling teacher errors or private/unsafe traces |
 | Fine-tuned judges/reward models | Replace expensive prompted judges with calibrated specialists | Kappa/alpha vs humans, ECE, slice drift, bias probes | Judge overfits rubric wording; self-preference |
+
+## Measured case: a confidence scorer can be net-negative
+
+The gate rows above name "reward hacking" and "self-feedback reinforces wrong
+assumptions" abstractly. This is one published run where the scorer measurably
+made things *worse* than having no scorer — useful because it is the ablation
+most teams skip.
+
+**Conditions, which the numbers do not survive without:** Sebastian Raschka,
+*Build a Reasoning Model (From Scratch)* (Manning, 2026), ch. 5 §5.8, table 5.1
+(p. 176). Qwen3 0.6B base model, all 500 samples of the MATH-500 test set, one
+GPU configuration (DGX Spark). One model, one task, one run — no confidence
+intervals, no seed replication. Treat every row below as **directional evidence
+that this failure mode is real**, not as an effect size that transfers.
+
+Base-model rows, quoting the table verbatim:
+
+| Method | Scoring | Iterations | Accuracy | Time |
+| ------ | ------- | ---------- | -------- | ---- |
+| Baseline (no refinement) | – | – | 15.2% | 10.1 min |
+| Self-refinement | None | 1 | 25.0% | 84.8 min |
+| Self-refinement | None | 2 | 22.0% | 165.4 min |
+| Self-refinement | Heuristic | 1 | 21.6% | 84.7 min |
+| Self-refinement | Heuristic | 2 | 20.8% | 151.4 min |
+| Self-refinement | Avg. logprob | 1 | 21.4% | 85.3 min |
+| Self-refinement | Avg. logprob | 2 | 22.0% | 165.3 min |
+
+What to take from it:
+
+- **The best base-model accuracy came with no scorer at all** (25.0%), above both
+  the heuristic scorer (21.6%) and the average-logprob scorer (21.4%). Raschka
+  describes the overall gain over baseline as "very moderate" and concludes that
+  "both the heuristic score and the average logprob score can sometimes lead to
+  incorrect answers being accepted over the initial correct answer."
+- **The stated mechanism**: average logprob "is more closely related to how
+  natural or expected an answer looks under the model than to whether the answer
+  is actually correct… it can favor answers that are fluent, familiar, or
+  syntactically clean, even when they are semantically wrong. In other words, the
+  logprob criterion can unintentionally select confident mistakes."
+- **A second refinement iteration did not reliably help.** It lowered accuracy in
+  the None (25.0% → 22.0%) and Heuristic (21.6% → 20.8%) rows and raised it
+  slightly in the Avg. logprob row (21.4% → 22.0%), while roughly doubling
+  runtime in each.
+- **Cost is not incidental**: the cheapest refinement row took 84.8 min against
+  10.1 min for the unrefined baseline — roughly 8x on this setup — for the ~10pp
+  gain.
+- **The direction reverses on the reasoning model.** On the same task, rows 8–11
+  show the reasoning-model baseline at 48.2% and heuristic-scored refinement at
+  57.8%, with avg-logprob scoring at 48.4% — so "scorer hurts" is not a general
+  law even within this one table. What generalizes is that *the scorer's value is
+  an empirical question per model and task*, not an assumption.
+- Raschka also reports that self-refinement was **less effective than
+  self-consistency** for this model on this math task.
+
+**The eval consequence.** Whenever you add a reranker, verifier, or refinement
+scorer, the mandatory arm is *the same pipeline with the scorer removed*
+(keep-first or keep-last). Comparing "scorer vs no pipeline" hides the case where
+the pipeline helps and the scorer inside it hurts. Likelihood-shaped scorers —
+average logprob, perplexity, self-reported confidence — are the ones to distrust
+first: they rank fluency, and fluency and correctness come apart exactly on the
+hard slice you built the eval for. Prefer a scorer with an outside signal
+(tests, a verifier, an execution result) over one derived from the generating
+model's own probabilities.
 
 ## Research-scout idea cards
 

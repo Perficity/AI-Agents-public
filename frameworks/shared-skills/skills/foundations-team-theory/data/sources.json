@@ -2,9 +2,9 @@
   "metadata": {
     "title": "Team Theory Foundations — Sources",
     "description": "Primary references for 10 team-theory primitives: team decision problem, information structure, person-by-person optimality, value of communication, Radner's LQG theorem, Witsenhausen counterexample, information cost, organizational forms, Dec-POMDP / MARL extension, common-task condition. Marschak–Radner classical layer plus modern multi-agent LLM extensions.",
-    "last_updated": "2026-08-14",
+    "last_updated": "2026-08-24",
     "skill": "foundations-team-theory",
-    "total_sources": 30
+    "total_sources": 31
   },
   "canonical_texts": [
     {
@@ -217,6 +217,13 @@
       "name": "The Mythical Man-Month: Essays on Software Engineering",
       "url": "https://www.pearson.com/en-us/subject-catalog/p/mythical-man-month-the-essays-on-software-engineering-anniversary-edition/P200000003438",
       "description": "Brooks, F.P. (1975; 20th-anniversary ed. 1995). Addison-Wesley. Establishes that adding personnel to a late software project makes it later, because pairwise communication paths grow combinatorially (~n(n-1)/2) with team size while individual output does not. Long-standing, uncontested management-of-engineering classic; used here only as the qualitative mechanism (quadratic coordination-link growth), not as a quantitative team-theory result. Primary source for P0-C team-size / coordination-cost curve in primitives-overview.md #8b.",
+      "url_check": "manual"
+    },
+    {
+      "id": "ForsgrenHumbleKim2018",
+      "name": "Accelerate: The Science of Lean Software and DevOps — Building and Scaling High Performing Technology Organizations",
+      "url": "https://itrevolution.com/product/accelerate/",
+      "description": "Forsgren, N., Humble, J., Kim, G. (2018). IT Revolution. Source for references/westrum-culture-measurement.md: Westrum's three-culture typology (Table 3.1, printed p. 65) and the seven validated Likert items measuring team organizational culture (Ch. 13, printed pp. 191-192). Used as the measured-culture empirical counterpart to the Marschak-Radner information-structure primitives, NOT as a source of team-theory results. Provenance limits: self-reported 2016-era survey population; inferential-predictive design, so findings are 'associated with' outcomes except where the authors' own directional prediction is quoted; the book's retired high/medium/low performer tiers are not cited as current fact.",
       "url_check": "manual"
     }
   ]

@@ -33,10 +33,10 @@ Use isolated workers when the lead only needs the result back:
 Platform notes:
 
 - Claude Code subagents may auto-delegate based on the registered description.
-- Claude Code subagents run in the background by default since ~July 2026 (v2.1.195+); pin a worker with `background: false` when its permission prompts must reach the human.
+- Claude Code background behavior depends on the active mode. Standard mode may use foreground when the result is needed; agent-view fork mode runs Claude-spawned subagents in the background. `background: true` forces background, but `false` is not a documented foreground pin. Current background permission requests surface in the main conversation.
 - Codex subagents require explicit spawning.
-- Codex defaults to `max_threads: 6` and `max_depth: 1`.
-- Since June 2026 Claude Code subagents can spawn their own subagents, with chains capped at 5 levels. That is a platform ceiling, not a recommendation — keep nesting at depth 1 (2 for hierarchical migrations) because recursive fan-out multiplies tokens and latency quickly and errors compound uncaught across levels. Codex stays at `max_depth: 1`.
+- Codex concurrency and recursion controls vary by active runtime surface. Do not hardcode undocumented `max_threads` or `max_depth` keys; discover the callable tool/config schema and keep ordinary workers leaf-only by policy.
+- Claude Code recursive spawn currently defaults to three layers below the main session and is configurable with `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`. Keep nesting at depth 1 (2 for hierarchical migrations) by policy because recursive fan-out multiplies tokens and latency quickly and errors compound uncaught across levels.
 
 ## Claude Code Agent Teams
 
@@ -44,9 +44,10 @@ Use agent teams when workers need direct discussion, self-coordination, or a sha
 
 Aug 2026 status — experimental, gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, behavior churning weekly. Three constraints before choosing this surface:
 
-- **Team config is runtime state, not an authored artifact.** `~/.claude/teams/{team-name}/` is written by the runtime when the lead creates a team. Do not pre-author or version it. Reusable roles belong in subagent definitions, which are referenced at spawn time.
-- **With teams enabled, subagent results return as idle notifications.** A flow that blocks waiting on a subagent's return value can stall. Do not enable the flag for sessions whose orchestration depends on synchronous subagent returns.
+- **Team config is runtime state, not an authored artifact.** Setup and cleanup are automatic; do not pre-author or version `~/.claude/teams/`. Reusable roles belong in subagent definitions, which are referenced at spawn time.
+- **Team and current forked-subagent work reports through notifications and task state.** Design dependencies around completion state rather than assuming a synchronous return value.
 - **A subagent definition's `skills:` and `mcpServers` frontmatter is ignored when it runs as a teammate.** Teammates load skills and MCP servers from project/user settings instead. A worker that depends on a preloaded skill will silently run without it.
+- **Teammates share the lead checkout.** `isolation: worktree` on a reused definition does not isolate a teammate; assign disjoint files or use ordinary isolated subagents.
 
 Good fits:
 
@@ -80,11 +81,11 @@ Agent teams coordinate through three mechanisms.
 
 | Tool | Who Uses It | Purpose |
 |------|-------------|---------|
-| `TeamCreate` | Lead only | Create a new team with a task list |
 | `SendMessage` | Any teammate | Direct or broadcast messaging |
 | `TaskList` | Any teammate | View all tasks and statuses |
 | `TaskUpdate` | Any teammate | Claim, complete, or update tasks |
-| `TeamDelete` | Lead only | Clean up team resources |
+
+Team creation and cleanup are lifecycle behavior, not tools to call or config files to pre-author.
 
 ### Quality-gate hooks
 
@@ -96,7 +97,7 @@ Optional hooks can keep team work disciplined:
 
 ## Cross-Session Messaging
 
-Shipped Aug 2026, macOS and Linux only. Independent Claude Code sessions can message each other directly without forming a team — no `TeamCreate`, no shared task list, no experimental flag.
+Shipped Aug 2026. Independent Claude Code sessions can message each other directly without forming a team or enabling the experimental teams flag: v2.1.224+ on macOS, Linux, and WSL 2; v2.1.234+ on native Windows. Remote Control can expose sessions on other machines; cloud sessions can receive messages but currently cannot message back.
 
 Use it when the only thing that has to cross a session boundary is a finding:
 

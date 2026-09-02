@@ -17,6 +17,7 @@
 - [Anti-Pattern 9: Polymorphic Associations](#anti-pattern-9-polymorphic-associations)
 - [Anti-Pattern 10: Adjacency Lists Without Traversal Aid](#anti-pattern-10-adjacency-lists-without-traversal-aid)
 - [Anti-Pattern 11: Overloaded Status/ENUM Columns](#anti-pattern-11-overloaded-statusenum-columns)
+- [Anti-Pattern 12: Three-Valued Logic and NULL](#anti-pattern-12-three-valued-logic-and-null)
 - [Quick Detection Checklist](#quick-detection-checklist)
 - [Operational Anti-Pattern Table](#operational-anti-pattern-table)
 - [Edge Cases & Fallbacks](#edge-cases-&-fallbacks)
@@ -204,6 +205,150 @@ WHERE order_date >= '<YEAR>-01-01' AND order_date < '<YEAR+1>-01-01'
 
 - Split into focused columns (e.g., lifecycle_state, visibility_state)
 - Use CHECK constraints and targeted indexes per concern
+
+---
+
+### Anti-Pattern 12: Three-Valued Logic and NULL
+
+**Problem:** SQL is not two-valued. `NULL` means "unknown", and comparisons against it
+return `NULL` rather than `TRUE` or `FALSE`. Code written with a Python or Java mental
+model produces silently wrong results — most destructively, queries that return zero
+rows and look like "no matches" rather than a bug.
+
+Karwin's framing (*SQL Antipatterns, Vol. 1*, ch. 14, "Fear of the Unknown") is that
+using `NULL` is not itself the antipattern: *"the antipattern is using null like an
+ordinary value or using an ordinary value like null."*
+
+**Detection:**
+
+- Any `NOT IN (SELECT ...)` where the subquery column is nullable
+- Equality or inequality comparisons against a nullable column without an `IS NULL` arm
+- A query that returns zero rows when the data clearly contains matches
+- Sentinel values (`-1`, `'N/A'`, `9999-12-31`) standing in for "unknown"
+
+#### Scalar and Boolean Truth Tables
+
+These are the cases where the result differs from what most programmers expect
+(Karwin, ch. 14):
+
+| Expression | Expected | Actual | Because |
+|------------|----------|--------|---------|
+| `NULL = 0` | TRUE | NULL | Null is not zero. |
+| `NULL = 12345` | FALSE | NULL | Unknown if the unspecified value is equal to a given value. |
+| `NULL <> 12345` | TRUE | NULL | Also unknown if it's unequal. |
+| `NULL + 12345` | 12345 | NULL | Null is not zero. |
+| `NULL \|\| 'string'` | 'string' | NULL | Null is not an empty string. |
+| `NULL = NULL` | TRUE | NULL | Unknown if one unspecified value is the same as another. |
+| `NULL <> NULL` | FALSE | NULL | Also unknown if they're different. |
+
+| Expression | Expected | Actual | Because |
+|------------|----------|--------|---------|
+| `NULL AND TRUE` | FALSE | NULL | Null is not false. |
+| `NULL AND FALSE` | FALSE | FALSE | Any truth value AND FALSE is false. |
+| `NULL OR FALSE` | FALSE | NULL | Null is not false. |
+| `NULL OR TRUE` | TRUE | TRUE | Any truth value OR TRUE is true. |
+| `NOT (NULL)` | TRUE | NULL | Null is not false. |
+
+The two rows that do behave predictably — `AND FALSE` and `OR TRUE` — are the reason
+`NOT IN` fails and `NOT EXISTS` does not.
+
+#### The `NOT IN (NULL)` Trap
+
+This is the highest-impact instance, documented independently by both Karwin (ch. 14,
+"Mini-Antipattern: NOT IN (NULL)") and Angelakos (*PostgreSQL Mistakes and How to Avoid
+Them*, §2.1). A single `NULL` anywhere in the `NOT IN` list makes the predicate return
+zero rows — always, regardless of the data.
+
+```sql
+-- Returns rows as expected
+SELECT * FROM bugs WHERE status IN (NULL, 'NEW');
+
+-- Returns NOTHING. Not "everything except NEW" — nothing at all.
+SELECT * FROM bugs WHERE status NOT IN (NULL, 'NEW');
+```
+
+Why, per Karwin: `NOT IN` expands to negated equality comparisons combined with `AND`
+(by De Morgan's law), so `NOT (status = NULL) AND NOT (status = 'NEW')`. The first term
+is `NOT (NULL)`, which is `NULL`. `NULL AND anything` is never `TRUE`, so no row ever
+matches.
+
+The production-realistic version is a subquery, where nobody notices the `NULL`.
+Angelakos's worked case: a query for customers in states with no supplier returned zero
+rows because one supplier — a non-US company — had `NULL` in its `state` column.
+
+```sql
+-- Broken: one NULL state in suppliers makes this return zero rows
+SELECT email FROM erp.customer_contact_details
+WHERE state NOT IN (SELECT state FROM erp.suppliers);
+```
+
+Angelakos: *"the predicate state NOT IN (SELECT state FROM erp.suppliers) can never
+return TRUE if even one NULL is present."*
+
+**Operational Fix — prefer `NOT EXISTS`:**
+
+```sql
+SELECT ccd.email
+FROM erp.customer_contact_details ccd
+WHERE NOT EXISTS (SELECT FROM erp.suppliers s
+                  WHERE ccd.state = s.state)
+  AND ccd.state IS NOT NULL;
+```
+
+This is correct *and* faster. `NOT IN (SELECT ...)` cannot be converted into an
+anti-join by the PostgreSQL planner, which falls back to a hashed or plain subplan;
+Angelakos notes the hashed form is only chosen for small result sets and the plain
+subplan is very slow, so such a query *"may offer decent performance on a small scale
+but can slow down by whole orders of magnitude if you cross a size threshold."* The
+`NOT EXISTS` form plans as a `Hash Anti Join`. A `LEFT JOIN ... WHERE s.state IS NULL`
+is an equivalent anti-join formulation.
+
+`NOT IN` remains safe against a literal list you control, or a subquery on a `NOT NULL`
+column. The risk is that the column's nullability can change later, so `NOT EXISTS` is
+the better default.
+
+#### Null-Safe Comparison: `IS DISTINCT FROM`
+
+`IS DISTINCT FROM` behaves like `<>` but always returns `TRUE` or `FALSE`, never
+`NULL`. It removes the need for hand-written `IS NULL OR ...` arms. These are
+equivalent:
+
+```sql
+SELECT * FROM bugs WHERE assigned_to IS NULL OR assigned_to <> 1;
+SELECT * FROM bugs WHERE assigned_to IS DISTINCT FROM 1;
+```
+
+It is especially useful with a bind parameter that may itself be `NULL` — one predicate
+handles both cases:
+
+```sql
+SELECT * FROM bugs WHERE assigned_to IS DISTINCT FROM ?;
+```
+
+**Portability — verify per engine and version.** Karwin's 2022 survey listed
+PostgreSQL, IBM DB2, and Firebird as supporting it, with Oracle and Microsoft SQL
+Server not yet doing so, and MySQL offering the proprietary `<=>` operator equivalent
+to `IS NOT DISTINCT FROM`. That snapshot has since moved: SQL Server added
+`IS [NOT] DISTINCT FROM` in SQL Server 2022. Check your target engine's current
+documentation rather than assuming either the old or new state, and be aware that
+`IS DISTINCT FROM` may not be usable as an index access predicate even where it is
+supported — verify with `EXPLAIN` on hot paths.
+
+#### Other Fixes
+
+- **Declare `NOT NULL` wherever a null would be nonsensical.** Karwin: *"It's better to
+  allow the database to enforce constraints uniformly rather than rely on application
+  code."* Note that a column can legitimately need `NOT NULL` while having no sensible
+  `DEFAULT` — do not add a sentinel default just to satisfy a blanket rule.
+- **Use `COALESCE` for presentation, not storage.** It supplies a non-null value in a
+  result set without writing a fake value into the table. String concatenation is the
+  classic case: one null middle initial nulls the entire concatenated name.
+- **Never use a sentinel value to mean "unknown".** Karwin's warning is that any flag
+  value inside the column's legitimate domain will eventually be needed for its literal
+  meaning. `-1`, `0`, and `9999-12-31` all silently corrupt aggregates — `AVG` counts
+  them, `NULL` is correctly ignored.
+- **Watch aggregate semantics.** `count(col)` ignores nulls while `count(*)` does not;
+  this is correct behavior and a frequent source of "wrong" totals.
 
 ---
 

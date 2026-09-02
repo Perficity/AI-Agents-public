@@ -250,6 +250,16 @@ The most expensive failures are the ones that look like success. A migration "co
 
 Rules don't help if the model stops reading them. Empirically (Mnimiy, 30 codebases × 6 weeks, 2026-05): compliance with a 4-rule contract is ~78%; with 12 rules ~76%; past ~14 rules compliance falls off a cliff to ~52% because the model pattern-matches on "rules exist" without reading them. These meta-rules keep a behavior contract usable.
 
+### Calibrate contract density to the model generation
+
+The ceilings below are upper bounds measured on Opus-4.x-era models; stronger models want contracts *well under* them, not near them. Anthropic removed over 80% of Claude Code's own system prompt for Claude 5-generation models (Opus 5, Fable 5) with no measurable loss on coding evals, replacing rigid rules with judgment framing — e.g. "never write multi-paragraph docstrings" became "write code that reads like the surrounding code" (dated 2026-07-24, [Anthropic: The new rules of context engineering for Claude 5 generation models](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models)). Practical consequences for this contract on Claude 5-class models:
+
+- Prefer a judgment statement over a cluster of narrow prohibitions when both target the same failure mode; keep the narrow rule only where you have seen the judgment form fail.
+- Move detail out of the always-loaded contract into progressively disclosed skills/references — the "active contract vs canonical reference" split in [Loading Guidance](#loading-guidance) is the mechanism.
+- "Tune to observed failure modes" (below) now cuts harder: a rule the current model no longer violates is pure ceiling budget — delete it from the loaded copy.
+
+Older or smaller models still need the stricter, rule-dense form; keep this canonical file complete and trim the *loaded* copy per target model.
+
 ### Keep the contract under the 200-line ceiling
 
 Past ~200 lines, important rules get buried and compliance drops sharply. A repo can append its own project-specific rules below the imported baseline — leave room for that. If your contract is approaching the ceiling, drop rules you have not seen the model actually violate.
